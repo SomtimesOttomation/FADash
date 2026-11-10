@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Sample dash on its own: a WebView2 window around modules\FADash.Host.psm1.
+    FADash on its own: a WebView2 window around modules\FADash.Host.psm1.
 .DESCRIPTION
     Windows PowerShell 5.1. This is the whole "thin host" a dash needs to run standalone under DashLauncher's dash
     contract: make the window and WebView2, build the context, call the backend. DashLauncher does the same for its tab.

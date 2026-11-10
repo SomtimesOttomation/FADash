@@ -1,40 +1,61 @@
-// Scores: NBADash's home view. A left-aligned heading per day ("Today · date · N games · N live"), then the game grid.
+// Matches: NBADash's home view, per league. A left-aligned heading per day ("Today · date · N matches · N live"), then the
+// match grid; "Coming up" lists the next days' fixtures. The open league is the pill in the league bar (state.league).
 import * as S from '../store.js';
-import { h, fmtKey } from '../util.js';
+import { addDaysKey, h, fmtKey } from '../util.js';
 import { gameCard, sortEvents, sectionHead, emptyState, skeletonCards, failNote } from '../components.js';
 
-export function mount(ctx) { draw(ctx); S.loadDay(S.todayKey()); S.loadDay(S.yesterdayKey()); S.loadStandings(); }
+const COMING_DAYS = 2;
+export function mount(ctx) {
+  draw(ctx);
+  const t = S.todayKey();
+  S.loadDay(t); S.loadDay(S.yesterdayKey());
+  for (let i = 1; i <= COMING_DAYS; i++) S.loadDay(addDaysKey(t, i));
+  S.loadStandings();
+}
 export function update(topics, ctx) {
-  if (['days', 'favorites', 'teams', 'sync', 'standings', 'settings', 'live'].some((t) => topics.has(t))) draw(ctx);
+  if (['days', 'favorites', 'teams', 'sync', 'standings', 'settings', 'live', 'league'].some((t) => topics.has(t))) draw(ctx);
 }
 
 function section(key, title) {
-  const d = S.state.days.get(key);
+  const d = S.dayOf(S.state.league, key);
   if (!d) return null;
   return { key, title, events: sortEvents(d.events) };
 }
 
+function comingUp() {
+  const t = S.todayKey();
+  const events = [];
+  for (let i = 1; i <= COMING_DAYS; i++) { const d = S.dayOf(S.state.league, addDaysKey(t, i)); if (d) events.push(...d.events.filter((e) => e.state === 'pre')); }
+  return sortEvents(events).sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+}
+
 function draw({ el }) {
+  const lg = S.state.league;
   const today = S.todayKey(), yest = S.yesterdayKey();
   const sections = [section(today, 'Today'), section(yest, 'Last night')].filter(Boolean);
   const out = [];
   const fav = S.favSet();
-  if (fav.size === 0) out.push(h('div', { class: 'card pad', style: { marginBottom: '18px' } },
-    h('b', null, 'Pick your teams. '), 'Click the ☆ on any logo above: favorites move to the front and their games are shown first.'));
-  for (const s of sections) {
-    const live = s.events.filter((e) => e.state === 'in').length;
-    out.push(sectionHead(s.title, `${fmtKey(s.key)} · ${s.events.length} game${s.events.length === 1 ? '' : 's'}${live ? ` · ${live} live` : ''}`));
-    out.push(s.events.length
-      ? h('div', { class: 'grid' }, s.events.map((e) => gameCard(e)))
-      : emptyState('No games', 'Nothing scheduled for this day.'));
-  }
+  if (fav.size === 0) out.push(h('div', { class: 'card pad notice' },
+    h('b', null, 'Pick your teams. '), 'Click the ☆ on any crest above: favorites move to the front, across every league, and their matches are shown first.'));
   if (!S.state.settings.autoRefresh && S.state.host) {
-    out.unshift(h('div', { class: 'card pad', style: { marginBottom: '18px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' } },
-      h('span', null, h('b', null, 'Automatic refresh is off. '), 'Scores only update when you ask. Use the ', h('b', null, '↻'), ' button (or F5) for the latest scores, or '),
+    out.push(h('div', { class: 'card pad notice' },
+      h('span', null, h('b', null, 'Automatic refresh is off. '), 'Scores only update when you ask. Use the ', h('b', null, '↻'), ' button (or F5) for the latest, or '),
       h('button', { class: 'btn', type: 'button', onclick: () => S.runSync().catch(() => {}) }, 'Sync the season'),
       h('button', { class: 'btn', type: 'button', onclick: () => import('./settings.js').then((m) => m.openSettings()) }, 'Automatic refresh options')));
   }
-  const err = S.keyError(`score:${today.slice(0, 4)}-${today.slice(4, 6)}-${today.slice(6, 8)}`);
+  for (const s of sections) {
+    const live = s.events.filter((e) => e.state === 'in').length;
+    out.push(sectionHead(s.title, `${fmtKey(s.key)} · ${s.events.length} match${s.events.length === 1 ? '' : 'es'}${live ? ` · ${live} live` : ''}`));
+    out.push(s.events.length
+      ? h('div', { class: 'grid' }, s.events.map((e) => gameCard(e)))
+      : emptyState('No matches', `No ${S.league().name} matches on this day.`));
+  }
+  const next = comingUp();
+  if (next.length) {
+    out.push(sectionHead('Coming up', `next ${COMING_DAYS} days · ${next.length} match${next.length === 1 ? '' : 'es'}`));
+    out.push(h('div', { class: 'grid' }, next.slice(0, 9).map((e) => gameCard(e))));
+  }
+  const err = S.keyError(`score:${lg}:${S.isoOf(today)}`);
   if (!sections.length) out.push(err ? failNote(err) : S.state.ready ? emptyState('Nothing loaded yet', 'Press the refresh button or F5.') : skeletonCards(6));
   el.replaceChildren(...out);
 }

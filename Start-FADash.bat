@@ -1,5 +1,5 @@
 @echo off
-rem Starts the Sample dash on its own. First run: Setup-WebView2.ps1 is run automatically if the DLLs are missing.
+rem Starts FADash on its own. First run: Setup-WebView2.ps1 is run automatically if the DLLs are missing.
 cd /d "%~dp0"
 if not exist "lib\Microsoft.Web.WebView2.Core.dll" (
   echo First run: downloading WebView2 libraries...
