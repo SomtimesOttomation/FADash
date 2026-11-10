@@ -168,7 +168,7 @@ function paintSearch() {
   const top = hits[0];
   if (top && fold(top.name).startsWith(f) && top.name.length > q.length && input.value === q) ghost.replaceChildren(h('span', { style: { visibility: 'hidden' } }, q), top.name.slice(q.length));
   else ghost.textContent = '';
-  res.replaceChildren(...(hits.length ? hits.map((x, i) => h('a', { href: x.href, class: i === sel ? 'sel' : '' }, h('b', null, x.name), ' ', h('small', null, x.sub))) : [h('div', { class: 'empty' }, 'No matches')]));
+  res.replaceChildren(...(hits.length ? hits.map((x, i) => h('a', { href: x.href, class: i === sel ? 'fa-sug sel' : 'fa-sug' }, h('b', null, x.name), ' ', h('small', null, x.sub))) : [h('div', { class: 'empty' }, 'No matches')]));
   res.hidden = false;
 }
 input.addEventListener('input', () => { sel = -1; paintSearch(); });

@@ -521,45 +521,44 @@ a.plink:hover { color: var(--accent2); }
 /* ---- FADash additions (football) ---------------------------------------------------------------------------------- */
 /* league bar: between the sync strip and the club banner. Same docking rules as the other bars: no bottom margin, and
    hidden takes no space (NAVBAR-SPEC). */
-.leaguebar { background: var(--surface); border-bottom: 1px solid var(--line); margin-bottom: 0; }
-.leaguebar[hidden] { display: none; }
-.leaguebar-in { display: flex; gap: 6px; align-items: center; padding: 6px 40px; overflow-x: auto; scrollbar-width: none; }
-.leaguebar-in::-webkit-scrollbar { display: none; }
-.lg-pill { display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-weight: 600; font-size: 13px; }
-.lg-pill:hover { background: var(--surface2); color: var(--text); }
-.lg-pill.active { background: var(--accent2); border-color: var(--accent2); color: #fff; }
-.lg-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--live); display: inline-block; }
-.lg-pill.active .dot { background: #fff; }
+.fa-leaguebar { background: var(--surface); border-bottom: 1px solid var(--line); margin-bottom: 0; }
+.fa-leaguebar[hidden] { display: none; }
+.fa-leaguebar-in { display: flex; gap: 6px; align-items: center; padding: 6px 40px; overflow-x: auto; scrollbar-width: none; }
+.fa-leaguebar-in::-webkit-scrollbar { display: none; }
+.fa-lg-pill { display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-weight: 600; font-size: 13px; }
+.fa-lg-pill:hover { background: var(--surface2); color: var(--text); }
+.fa-lg-pill.active { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+.fa-lg-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--live); display: inline-block; }
+.fa-lg-pill.active .dot { background: #fff; }
 
 /* club tiles: the league tag on favourites from another league; the star stays clickable above an enlarged logo */
-.tile .tile-star { z-index: 2; }
-.tile .logo, .tile .logo img { pointer-events: none; }
-.tile-lg { position: absolute; top: 4px; left: 5px; font-size: 10px; font-weight: 700; letter-spacing: .05em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; background: var(--surface); }
+.fa-tile .tile-star { z-index: 2; }
+.fa-tile .logo, .fa-tile .logo img { pointer-events: none; }
+.fa-tile-lg { position: absolute; top: 4px; left: 5px; font-size: 10px; font-weight: 700; letter-spacing: .05em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; background: var(--surface); }
 
 /* match cards */
-.side.draw { opacity: 1; }
-.score .pens { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 4px; }
-.comp-tag { font-size: 11px; font-weight: 600; letter-spacing: .03em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; white-space: nowrap; }
-.goals { margin-top: 6px; display: grid; gap: 2px; font-size: 12px; color: var(--muted); }
-.goal-line b { color: var(--text); font-weight: 650; margin-right: 2px; }
-.mc-btn { padding: 2px 10px; font-size: 12px; white-space: nowrap; }
-.notice { margin-bottom: 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.score .fa-pens { font-size: 13px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+.fa-comp-tag { font-size: 11px; font-weight: 600; letter-spacing: .03em; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; white-space: nowrap; }
+.fa-goals { margin-top: 6px; display: grid; gap: 2px; font-size: 12px; color: var(--muted); }
+.fa-goal-line b { color: var(--text); font-weight: 650; margin-right: 2px; }
+.fa-mc-btn { padding: 2px 10px; font-size: 12px; white-space: nowrap; }
+.fa-notice { margin-bottom: 14px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 
 /* tables */
-.tbl.standings td.pts { font-weight: 700; }
-.club-cell { display: inline-flex; align-items: center; gap: 8px; }
-.club-cell .pos { min-width: 1.6ch; text-align: right; }
-.club-cell .club-name { color: var(--muted); }
-.tbl.standings tr.zone td:first-child { box-shadow: inset 4px 0 0 var(--zc); }
-.zone-europe { --zc: #2563eb; } .zone-europe2 { --zc: #f59e0b; } .zone-promo { --zc: #16a34a; } .zone-playoff { --zc: #0891b2; } .zone-rel { --zc: #dc2626; }
-.zone-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 12px 2px 0; font-size: 12px; color: var(--muted); }
-.zone-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.zone-key { width: 12px; height: 12px; border-radius: 3px; background: var(--zc); display: inline-block; }
-.form { display: inline-flex; gap: 3px; }
-.fc { font-style: normal; font-size: 10px; font-weight: 700; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 4px; color: #fff; }
-.fc-W { background: var(--good); } .fc-D { background: #8b95a8; } .fc-L { background: var(--live); }
+.tbl.standings td.fa-pts { font-weight: 700; }
+.fa-club-cell { display: inline-flex; align-items: center; gap: 8px; }
+.fa-club-cell .fa-pos { min-width: 1.6ch; text-align: right; }
+.fa-club-cell .fa-club-name { color: var(--muted); }
+.tbl.standings tr.fa-zone td:first-child { box-shadow: inset 4px 0 0 var(--zc); }
+.fa-zone-europe { --zc: #2563eb; } .fa-zone-europe2 { --zc: #f59e0b; } .fa-zone-promo { --zc: #16a34a; } .fa-zone-playoff { --zc: #0891b2; } .fa-zone-rel { --zc: #dc2626; }
+.fa-zone-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 12px 2px 0; font-size: 12px; color: var(--muted); }
+.fa-zone-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.fa-zone-key { width: 12px; height: 12px; border-radius: 3px; background: var(--zc); display: inline-block; }
+.fa-form { display: inline-flex; gap: 3px; }
+.fa-fc { font-style: normal; font-size: 10px; font-weight: 700; width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 4px; color: #fff; }
+.fa-fc-W { background: var(--good); } .fa-fc-D { background: #8b95a8; } .fa-fc-L { background: var(--live); }
 
 /* search suggestions */
-.psearch-results a { display: flex; gap: 8px; align-items: baseline; padding: 7px 12px; }
-.psearch-results a.sel, .psearch-results a:hover { background: var(--surface2); }
-@media (max-width: 700px) { .leaguebar-in { padding: 6px 12px; } .club-cell .club-name { display: none; } }
+.psearch-results a.fa-sug { display: flex; gap: 8px; align-items: baseline; padding: 7px 12px; }
+.psearch-results a.fa-sug.sel, .psearch-results a.fa-sug:hover { background: var(--surface2); }
+@media (max-width: 700px) { .fa-leaguebar-in { padding: 6px 12px; } .fa-club-cell .fa-club-name { display: none; } }

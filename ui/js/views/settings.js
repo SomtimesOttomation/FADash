@@ -79,7 +79,7 @@ function dataTab() {
     refreshPanel(),
     hr(),
     h('p', null, h('b', null, 'Data sources ')),
-    h('div', { class: 'card pad notice' }, h('b', null, 'PRETEND DATA. '), 'Every club, match and player in FADash is made up for now. No real source has been chosen yet: the candidates and their terms get checked first, and the chosen source is listed here with its attribution.'),
+    h('div', { class: 'card pad fa-notice' }, h('b', null, 'PRETEND DATA. '), 'Every club, match and player in FADash is made up for now. No real source has been chosen yet: the candidates and their terms get checked first, and the chosen source is listed here with its attribution.'),
     h('p', null, h('small', null, 'Pretend servers (scores.pretend.invalid, teams.pretend.invalid) answer from inside the app; nothing leaves your computer. Each real source will be listed here with a link to its terms, as in dash.json, and counted separately on the traffic page.')),
     h('p', null, h('button', { class: 'btn', type: 'button', onclick: async () => { await bridge.request('cache.clear'); location.reload(); } }, 'Clear saved data'), ' ',
       h('button', { class: 'btn', type: 'button', onclick: () => openTraffic() }, 'Traffic details')),

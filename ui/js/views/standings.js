@@ -13,7 +13,7 @@ export function update(topics, ctx) { if (['standings', 'favorites', 'league', '
 const COLS = [['P', 'gp', 'gp'], ['W', 'w'], ['D', 'd'], ['L', 'l'], ['GF', 'gf', 'gf'], ['GA', 'ga', 'ga'], ['GD', 'gd', 'gd'], ['PTS', 'pts', 'pts'], ['PPG', 'ppg', 'ppg']];
 const gd = (t) => t.gf - t.ga;
 const val = (t, k) => (k === 'gd' ? `${gd(t) > 0 ? '+' : ''}${gd(t)}` : k === 'ppg' ? (t.gp ? (t.pts / t.gp).toFixed(2) : '–') : t[k]);
-export const formChips = (form) => h('span', { class: 'form' }, (form || []).map((r) => h('i', { class: `fc fc-${r}`, title: r === 'W' ? 'Win' : r === 'D' ? 'Draw' : 'Defeat' }, r)));
+export const formChips = (form) => h('span', { class: 'fa-form' }, (form || []).map((r) => h('i', { class: `fa-fc fa-fc-${r}`, title: r === 'W' ? 'Win' : r === 'D' ? 'Draw' : 'Defeat' }, r)));
 
 function draw({ el }) {
   const lg = S.league();
@@ -33,10 +33,10 @@ function draw({ el }) {
       h('thead', null, h('tr', null, h('th', null, 'Club'), COLS.map(([l, , c]) => h('th', null, c ? h('span', calc(c), l) : l)), h('th', null, h('span', calc('form'), 'Form')))),
       h('tbody', null, st.teams.map((t, i) => {
         const z = zoneAt(lg, i + 1, n);
-        return h('tr', { class: `${fav.has(t.id) ? 'me' : ''} ${z ? `zone zone-${z.kind}` : ''}`, title: z ? z.label : '', style: { cursor: 'pointer' }, onclick: () => { location.hash = `#/team/${t.id}`; } },
-          h('td', null, h('span', { class: 'club-cell' }, h('small', { class: 'pos' }, i + 1), teamLogo(t.id, 24), h('b', null, (S.team(t.id) || t).abbr), h('small', { class: 'club-name' }, S.team(t.id)?.name || ''))),
-          COLS.map(([, k]) => h('td', { class: k === 'pts' ? 'pts' : '' }, val(t, k))),
+        return h('tr', { class: `${fav.has(t.id) ? 'me' : ''} ${z ? `fa-zone fa-zone-${z.kind}` : ''}`, title: z ? z.label : '', style: { cursor: 'pointer' }, onclick: () => { location.hash = `#/team/${t.id}`; } },
+          h('td', null, h('span', { class: 'fa-club-cell' }, h('small', { class: 'fa-pos' }, i + 1), teamLogo(t.id, 24), h('b', null, (S.team(t.id) || t).abbr), h('small', { class: 'fa-club-name' }, S.team(t.id)?.name || ''))),
+          COLS.map(([, k]) => h('td', { class: k === 'pts' ? 'fa-pts' : '' }, val(t, k))),
           h('td', null, formChips(t.form)));
       })))),
-    legend.length ? h('div', { class: 'zone-legend', 'aria-label': 'Table zones' }, legend.map((z) => h('span', null, h('i', { class: `zone-key zone-${z.kind}` }), z.label))) : null);
+    legend.length ? h('div', { class: 'fa-zone-legend', 'aria-label': 'Table zones' }, legend.map((z) => h('span', null, h('i', { class: `fa-zone-key fa-zone-${z.kind}` }), z.label))) : null);
 }

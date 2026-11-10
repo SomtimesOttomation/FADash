@@ -112,7 +112,7 @@ function sideRow(ev, sd, opts) {
         h('small', null, [opts.wide ? sd.abbr : '', showLg, record].filter(Boolean).join(' · ')))),
     ev.state === 'pre' ? h('span', { class: 'score muted' }, '–')
       : h('span', { class: `score ${justScored ? 'bump' : ''}` }, sd.score ?? '–',
-        sd.pens != null ? h('small', { class: 'pens', title: 'Penalty shoot-out' }, `(${sd.pens})`) : null));
+        sd.pens != null ? h('small', { class: 'fa-pens', title: 'Penalty shoot-out' }, `(${sd.pens})`) : null));
 }
 
 // "Hale 8', 61'" per scorer, in minute order, one line per side that has scored.
@@ -123,9 +123,9 @@ function goalLines(ev) {
     if (!g.length) continue;
     const by = new Map();
     g.forEach((x) => { if (!by.has(x.name)) by.set(x.name, []); by.get(x.name).push(`${x.min}'`); });
-    lines.push(h('div', { class: 'goal-line' }, h('b', null, sd.abbr), ' ', [...by].map(([n, m]) => `${n} ${m.join(', ')}`).join(' · ')));
+    lines.push(h('div', { class: 'fa-goal-line' }, h('b', null, sd.abbr), ' ', [...by].map(([n, m]) => `${n} ${m.join(', ')}`).join(' · ')));
   }
-  return lines.length ? h('div', { class: 'goals', 'aria-label': 'Goals' }, lines) : null;
+  return lines.length ? h('div', { class: 'fa-goals', 'aria-label': 'Goals' }, lines) : null;
 }
 
 export function gameCard(ev, opts = {}) {
@@ -137,7 +137,7 @@ export function gameCard(ev, opts = {}) {
   const go = () => { location.hash = `#/team/${home?.id || ''}`; };
   // With automatic refresh off a live match does not move by itself: the card carries its own refresh.
   const manual = ev.state === 'in' && !S.state.settings.autoRefresh;
-  const refreshBtn = manual ? h('button', { class: 'btn mc-btn', type: 'button', title: 'Fetch the latest for this day (manual refresh)',
+  const refreshBtn = manual ? h('button', { class: 'btn fa-mc-btn', type: 'button', title: 'Fetch the latest for this day (manual refresh)',
     onclick: (e) => { e.stopPropagation(); S.loadDay(etKey(new Date(ev.date)), true, ev.league).catch(() => {}); } }, '↻ Match centre') : null;
   return h('article', {
     class: `card game ${ev.state} ${opts.wide ? 'wide' : ''} ${isFavGame ? 'fav' : ''}`,
@@ -147,7 +147,7 @@ export function gameCard(ev, opts = {}) {
     h('header', { class: 'game-head' },
       statusPill(ev),
       h('span', { class: 'game-head-right' },
-        opts.showLeague || ev.league === 'cup' ? h('span', { class: 'comp-tag', title: ev.comp }, ev.comp) : null,
+        opts.showLeague || ev.league === 'cup' ? h('span', { class: 'fa-comp-tag', title: ev.comp }, ev.comp) : null,
         isFavGame ? h('span', { class: 'fav-tag', title: 'Favorite club' }, '★') : null)),
     h('div', { class: 'sides' }, home ? sideRow(ev, home, opts) : null, away ? sideRow(ev, away, opts) : null),
     goalLines(ev),
@@ -159,9 +159,9 @@ export function gameCard(ev, opts = {}) {
 export function renderLeagueBar(el) {
   const live = new Set();
   S.state.days.forEach((d) => { if (d.events.some((e) => e.state === 'in')) live.add(d.league); });
-  el.replaceChildren(h('div', { class: 'leaguebar-in', role: 'tablist', 'aria-label': 'Competitions' },
+  el.replaceChildren(h('div', { class: 'fa-leaguebar-in', role: 'tablist', 'aria-label': 'Competitions' },
     LEAGUES.map((l) => h('button', {
-      class: `lg-pill ${l.slug === S.state.league ? 'active' : ''}`, type: 'button', role: 'tab', 'aria-selected': l.slug === S.state.league ? 'true' : 'false',
+      class: `fa-lg-pill ${l.slug === S.state.league ? 'active' : ''}`, type: 'button', role: 'tab', 'aria-selected': l.slug === S.state.league ? 'true' : 'false',
       title: l.name, onclick: () => S.setLeague(l.slug),
     }, live.has(l.slug) ? h('i', { class: 'dot', 'aria-hidden': 'true' }) : null, l.name))));
 }
@@ -182,11 +182,11 @@ export function renderBanner(el, activeId) {
   el.replaceChildren();
   const strip = h('div', { class: 'banner-strip', role: 'list' });
   const tile = (t, isFav) => h('a', {
-    class: `tile ${isFav ? 'fav' : ''} ${t.id === activeId ? 'active' : ''}`, href: `#/team/${t.id}`, role: 'listitem',
+    class: `tile fa-tile ${isFav ? 'fav' : ''} ${t.id === activeId ? 'active' : ''}`, href: `#/team/${t.id}`, role: 'listitem',
     title: `${t.name} · ${leagueOf(t.league).name}`, style: { '--tc': teamColor(t) },
   }, starButton(t.id, 'tile-star'), teamLogo(t.id, 92),
   h('span', { class: 'tile-code' }, t.abbr),
-  isFav && t.league !== S.state.league ? h('span', { class: 'tile-lg' }, leagueOf(t.league).short) : null);
+  isFav && t.league !== S.state.league ? h('span', { class: 'fa-tile-lg' }, leagueOf(t.league).short) : null);
   favorites.forEach((t) => strip.append(tile(t, true)));
   if (favorites.length && others.length) strip.append(h('span', { class: 'banner-divider', 'aria-hidden': 'true' }));
   others.forEach((t) => strip.append(tile(t, false)));

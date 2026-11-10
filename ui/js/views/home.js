@@ -35,10 +35,10 @@ function draw({ el }) {
   const sections = [section(today, 'Today'), section(yest, 'Last night')].filter(Boolean);
   const out = [];
   const fav = S.favSet();
-  if (fav.size === 0) out.push(h('div', { class: 'card pad notice' },
+  if (fav.size === 0) out.push(h('div', { class: 'card pad fa-notice' },
     h('b', null, 'Pick your teams. '), 'Click the ☆ on any crest above: favorites move to the front, across every league, and their matches are shown first.'));
   if (!S.state.settings.autoRefresh && S.state.host) {
-    out.push(h('div', { class: 'card pad notice' },
+    out.push(h('div', { class: 'card pad fa-notice' },
       h('span', null, h('b', null, 'Automatic refresh is off. '), 'Scores only update when you ask. Use the ', h('b', null, '↻'), ' button (or F5) for the latest, or '),
       h('button', { class: 'btn', type: 'button', onclick: () => S.runSync().catch(() => {}) }, 'Sync the season'),
       h('button', { class: 'btn', type: 'button', onclick: () => import('./settings.js').then((m) => m.openSettings()) }, 'Automatic refresh options')));
