@@ -1,6 +1,6 @@
 # FADash data sources report
 
-Status: DRAFT 4 (probe and deep-check results from 2026-11-09 added) for NBADash's and the owner's review (hand-off v2, item A1). Nothing has been built on any source; the real worker is not approved. Written 2026-11-09. Draft 2 adds candidates 5 to 18 (the owner's list, plus ESPN and BBC) and applies the owner's rules: free only, all four tiers for 2026-27 or say exactly which, terms that allow a personal app with caching and display, no betting data, no scraping (a website with no official API and published terms counts as scraping).
+Status: DRAFT 5 (all probe results from 2026-11-09 added; ready for the owner's decision) for NBADash's and the owner's review (hand-off v2, item A1). Nothing has been built on any source; the real worker is not approved. Written 2026-11-09. Draft 2 adds candidates 5 to 18 (the owner's list, plus ESPN and BBC) and applies the owner's rules: free only, all four tiers for 2026-27 or say exactly which, terms that allow a personal app with caching and display, no betting data, no scraping (a website with no official API and published terms counts as scraping).
 
 ## Read this first: what is checked and what is not
 
@@ -20,14 +20,14 @@ Status: DRAFT 4 (probe and deep-check results from 2026-11-09 added) for NBADash
 
 Proposal (for your decision, based on the probe):
 
-1. **Make ESPN the main source, if you accept it for football.** It is the only candidate that serves all four tiers for 2026-27, needs no key, and returns live state, scores, goals and cards, tables, line-ups, match events and crests. It comes with the shared safeguards in candidate 17. It gives players with ages. It has no injuries in match summaries (a per-player injuries field exists and is not yet checked) and no transfers seen.
+1. **Make ESPN the main source, if you accept it for football.** It is the only candidate that serves all four tiers for 2026-27, needs no key, and returns live state, scores, goals and cards, tables, line-ups, match events and crests. It comes with the shared safeguards in candidate 17. It gives players with ages. It has no usable injuries (the per-player injuries field was empty in the rosters checked) and no transfers.
 2. **openfootball and football-data.org are not needed for the first release if ESPN is accepted.** Both cover only the Premier League and Championship. openfootball stays a possible offline fallback for those two tiers; football-data.org needs a key and gives delayed scores.
 3. **API-Football stays optional** (each person's own key) for what ESPN lacks: injuries, transfers, players and ages. Its terms are still unread and it was not probed.
 4. **If you do not accept ESPN:** the plan falls back to openfootball for two tiers, and League One and League Two have no source that passes.
 5. **Not proposed:** football-data.co.uk (excluded by the owner); candidates 5 to 16 and 18 (all fail).
 6. **Still without a source:** injuries, transfers, free agents. Ship the watch list with hand-entered players.
 
-Open question for you: do you accept ESPN for football, on the same terms as NBADash? If yes, a deep probe (League One and League Two checks, player data) is the last step before the worker.
+Decision for you: do you accept ESPN for football, on the same terms as NBADash? The probes are finished; the one thing they cannot show is live behaviour, which can only be seen on a match day.
 
 ## Probe results (run by the owner on Windows, 2026-11-09 22:10)
 
@@ -40,6 +40,7 @@ Open question for you: do you accept ESPN for football, on the same terms as NBA
 | API-Football | Not probed. |
 | ESPN | See candidate 17 for the full results. All eight English competitions answered. |
 | ESPN deep check (22:23, 8 requests, no errors) | Saturday 7 November Championship: 11 matches, all full time, with 4 to 16 goal/card entries each; a Championship summary had 19 key events, 90 commentary lines, two line-ups of 20 players (11 starters, formation, subbed-in and subbed-out flags). League One and League Two returned **0 events on that Saturday** (probably no league fixtures that weekend; not confirmed). Tables for League One and League Two: 24 rows each, season 2026. A League One team roster (30 players, 221 KB) carried age, date of birth, position, jersey, height, weight, citizenship and an `injuries` field. |
+| ESPN deep check 2 (22:26, 10 requests, no errors) | **League One and League Two completed matches are served**: Saturday 31 October, 11 matches each, all `STATUS_FULL_TIME`, with 4 to 12 goal/card entries per match. A League One summary (331 KB, 433 ms) had 20 key events and two line-ups (formation `3-4-2-1`, 18 players each, 11 starters); a League Two summary (321 KB, 1.3 s) had 17 key events and two line-ups. The upcoming League One Saturday (14 November) had 12 fixtures: 5 `STATUS_SCHEDULED` and 7 `STATUS_POSTPONED`. Postponed matches arrive with state "post", score 0-0 and the detail "Postponed", which explains the earlier oddity. Rosters: League One club 30 players (27 with age), League Two club 28 players (all with age). **No player in either roster had an injury entry.** |
 
 ## Candidate 1: openfootball/england (public domain files on GitHub)
 
@@ -123,11 +124,15 @@ Evidence for each (primary = the site's own page, secondary = anyone else; UNVER
     - **Championship** on Saturday 7 November: 11 matches, all `STATUS_FULL_TIME`, each with 4 to 16 goal/card entries on the scoreboard. A match summary (392 KB, 463 ms) had 19 key events, 90 commentary lines and two line-ups of 20 players each (11 starters, formation `4-2-3-1`, flags for subbed in and out, a stats block per player).
     - **League One and League Two tables:** 24 rows each, season 2026.
     - **Players and ages: yes.** A League One team roster (AFC Wimbledon, 30 players, 221 KB, 228 ms) carried age, date of birth, position, jersey, height, weight, birthplace, citizenship, statistics and an `injuries` field. Sample: age 32, born 1994, goalkeeper, shirt 20. Rosters are large, so they would be fetched one team at a time, on demand.
-    - **Injuries: possibly.** Each player has an `injuries` field; the probe did not count how many were filled in (the next probe does). Match summaries have no injuries key.
-    - **Not seen: League One and League Two completed matches.** Both scoreboards returned 0 events for Saturday 7 November, so I still have not seen their match data. The earlier 14 November oddity (some fixtures showing state "post" at 0-0 with no details) is also unexplained, because the first probe did not print status names. The next probe looks back up to five Saturdays for each league and prints the upcoming Saturday's status names.
+    - **Injuries: not served in practice.** Each player has an `injuries` field, but it was empty for all 58 players in one League One and one League Two roster, and match summaries have no injuries key. Treat injuries as still without a source.
+  - **Deep check 2 (owner's PC, 2026-11-09 22:26, 10 more requests):**
+    - **League One and League Two completed matches: yes.** Saturday 31 October, 11 matches each, all full time, with 4 to 12 goal and card entries each on the scoreboard. League One summary: 331 KB, 20 key events, line-ups with formation and 18 players per side. League Two summary: 321 KB, 17 key events, the same line-up detail. (The probe's first Saturday, 7 November, had no league fixtures in either tier.)
+    - **Postponed matches:** ESPN reports them with state "post", score 0-0 and the status name `STATUS_POSTPONED` (detail "Postponed"). On 14 November, 7 of 12 League One fixtures were postponed. The worker must read the status name, not only the state, or postponed matches will show as 0-0 finished. This is a real data-handling rule to build in.
+    - **Rosters:** League One club 30 players (27 with age), League Two club 28 players (all with age).
+    - **Speed:** 59 to 463 ms for most calls; one League Two summary took 1.3 s.
     - **Not seen: transfers, and how it behaves in play** (the probes ran on a Monday night with no live match).
 
-Verdict: **PASS on coverage and the project rules, with the owner's risk decision.** It is the strongest candidate on coverage. The owner has doubts about ESPN for football specifically; the open points are League One and League Two match data (not seen yet), live behaviour, whether injuries are filled in, and the fact that it is unofficial and can change or stop at any time.
+Verdict: **PASS on coverage and the project rules, with the owner's risk decision.** It is the strongest candidate on coverage. The owner has doubts about ESPN for football specifically; what the probes settled: all four tiers serve current-season scoreboards, completed matches with events and line-ups, tables and rosters with ages. What they did not settle: live behaviour during a match, injuries (empty), transfers (not seen), and the fact that it is unofficial and can change or stop at any time.
 
 - **18. BBC.** No public football data API or feed was found. BBC Sport is a website, so any use would be scraping. The BBC Terms of Use page I could reach (a 2020 archive) says "We want everyone to enjoy the BBC. But there are a few rules to stick to." and points to explainers; the full text could not be read: UNVERIFIED. Secondary: news items from this year report the BBC objecting to an AI company reproducing its content (headlines only; I did not read them in full). Verdict: out.
 
@@ -137,7 +142,7 @@ Also noted: the soccerdata package, which many of these scrapers use, says "Plea
 
 Of candidates 5 to 18 only ESPN (17) passes; the others fail. Ranked by what each adds, using the probe where there is one:
 
-1. **ESPN (candidate 17), if the owner accepts it.** All four tiers for 2026-27 plus FA Cup, Carabao Cup, Community Shield and EFL Trophy; no key; live state and scores; goals and cards on the match list; tables (Premier League and Championship verified); line-ups, key events, commentary and team stats per match; crests. Unlocks: match events, line-ups, players and ages, crests, and live scores for all four tiers. Players and ages are served (team rosters), and League One and League Two tables are served. Missing or unseen: injuries (none in match summaries; a per-player field exists), transfers, League One and League Two completed matches, live behaviour. Risk: unofficial; can change or stop at any time; odds keys must be whitelisted out.
+1. **ESPN (candidate 17), if the owner accepts it.** All four tiers for 2026-27 plus FA Cup, Carabao Cup, Community Shield and EFL Trophy; no key; live state and scores; goals and cards on the match list; tables (Premier League and Championship verified); line-ups, key events, commentary and team stats per match; crests. Unlocks: match events, line-ups, players and ages, crests, and live scores for all four tiers. Players and ages are served (team rosters), and League One and League Two tables are served. League One and League Two completed matches are served with events and line-ups. Missing or unseen: injuries (field empty in the rosters checked), transfers, live behaviour. Postponed matches must be read from the status name. Risk: unofficial; can change or stop at any time; odds keys must be whitelisted out.
 2. **API-Football (candidate 3), if its terms pass.** Not probed and terms unread. All four tiers in principle, and the only candidate documented to carry injuries, transfers and players with ages. Free plan: 100 requests a day. Best used as an optional layer with each person's own key.
 3. **openfootball/england (candidate 1).** No key, public domain, but only the Premier League and Championship for 2026-27, results and fixtures only, not live. Possible offline fallback; it no longer qualifies as a four-tier base layer.
 4. **football-data.org (candidate 2).** Free key, Premier League and Championship only (confirmed), 10 requests a minute, delayed scores. Adds little if ESPN is used.
@@ -156,7 +161,7 @@ Excluded by the owner: football-data.co.uk (4).
 | Match events (goals, cards, subs) | goals only if listed in the files | no (secondary) | documented, UNVERIFIED | yes (key events and commentary; goals and cards also on the scoreboard) |
 | Team stats | no | add-on (secondary) | documented, UNVERIFIED | team box score in the summary |
 | Players and ages | no | UNVERIFIED | documented, UNVERIFIED | yes, from team rosters (age, date of birth, position, jersey; about 220 KB per team) |
-| Injuries | no | UNVERIFIED | documented, UNVERIFIED | not in match summaries; a per-player `injuries` field exists, contents not yet checked |
+| Injuries | no | UNVERIFIED | documented, UNVERIFIED | no: the per-player `injuries` field was empty in two rosters checked |
 | Transfers | no | UNVERIFIED | documented, UNVERIFIED | not seen |
 | Crest images | no | UNVERIFIED (terms silent) | UNVERIFIED | yes, logo URLs in the team list (fetch to cache) |
 | Cups | not confirmed | UNVERIFIED | UNVERIFIED | FA Cup, Carabao Cup, Community Shield, EFL Trophy |
@@ -177,8 +182,7 @@ Crests: club crests are trademarks, so even where an API serves them I would onl
 
 ## Next steps
 
-1. Owner: decide whether ESPN is accepted for football (same policy as NBADash). The report now shows ESPN is strong on coverage and players; the remaining gap is League One and League Two match data.
-2. Run the second deep probe (`tools\Run-ProbeFAFeeds-ESPN-deep.bat`, up to about 18 requests, no key). It finds the latest Saturday with League One and League Two matches, reads one completed match from each, prints status names for the upcoming Saturday, counts filled-in injuries on one League One and one League Two roster, and sends back the file.
-3. Optional: enter an API-Football key and run the full probe (`tools\Run-ProbeFAFeeds.bat`) so API-Football can be ranked on evidence; its terms still need reading in full first.
-4. I finish this report with a final ranking and recommendation.
-5. The worker is not built until the owner replies to the final report.
+1. **Owner decides:** accept ESPN for football (same policy as NBADash), or not. If not, League One and League Two have no source that passes, and the plan falls back to openfootball for the Premier League and Championship.
+2. **Owner decides:** injuries and transfers. ESPN gives neither in practice. Options: ship the watch list with hand-entered players (as planned), or probe API-Football with a free key and read its terms in full first.
+3. **Optional:** run `tools\Run-ProbeFAFeeds.bat` with an API-Football key so it can be ranked on evidence.
+4. On "go", the worker is built on a feature branch, using ESPN's league list to find the competitions, reading the status name (postponed), whitelisting fields so odds are never kept, and fetching rosters, summaries and crests on demand only. Until the owner replies, the real worker is not approved.
