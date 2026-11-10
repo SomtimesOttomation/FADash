@@ -57,7 +57,7 @@ Open question for you: is a base layer that is not live acceptable for the first
 
 - **What it covers:** English tiers as CSV files (the Premier League file is `E0.csv`; the other tiers are believed to be E1 to E3, **UNVERIFIED**), results and match statistics. Secondary sources (a modelling knowledge base and a Python library page): updated weekly in season and "not real-time"; "no API key, no registration, no rate limits"; the Premier League download has 111 columns, many of them bookmaker odds.
 - **Terms: UNVERIFIED.** I found no terms or licence statement in any page I could read, and the site itself could not be fetched.
-- **Why not proposed:** every file mixes odds in with the results, so using it means reading files that contain betting data and discarding it. The probe script reads only the header and non-betting columns and keeps no odds. I suggest not using this source unless the base layer proves too slow.
+- **Why not proposed:** every file mixes odds in with the results, so using it means reading files that contain betting data. The owner has excluded it and it is not probed.
 
 ## Candidates 5 to 18 (added at the owner's request)
 
