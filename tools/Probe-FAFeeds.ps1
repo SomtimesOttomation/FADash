@@ -3,7 +3,7 @@
     Calls each candidate football data source once and records what comes back. Run it yourself, on your own computer.
 .DESCRIPTION
     Windows PowerShell 5.1. This is the probe step of the Data Sources report (docs/DATA-SOURCES-REPORT.md). It makes a
-    handful of requests (about 15 in total), one per second, and writes everything it sees to
+    handful of requests (about 12 in total), one per second, and writes everything it sees to
     tools\probe-output\fa-probe-<time>.txt (not committed: see .gitignore).
 
     What it does NOT do:
@@ -18,17 +18,17 @@
 
     Sources probed:
       1. openfootball/england (public domain text files on GitHub): lists the season folder, reads one league file.
-      2. football-data.co.uk (CSV files): the Premier League file of the current season, header and first rows, without odds columns.
-      3. football-data.org (API, key): competition list, then Premier League and Championship matches and table.
-      4. API-Football (API, key): status, English leagues, and one fixtures call. Four requests at most.
+      2. football-data.org (API, key): competition list, then Premier League and Championship matches and table.
+      3. API-Football (API, key): status, English leagues, and one fixtures call. Four requests at most.
+    Only sources whose terms allow this are probed. football-data.co.uk is excluded by the owner (odds in every file).
+    Sites with no official API (FBref, Sofascore, FotMob, Understat, Transfermarkt, BBC and similar) are never contacted.
 
     Send the output file back so the report can be finished with real numbers (fields, headers, rate limits, empty responses).
 .EXAMPLE
     powershell -NoProfile -ExecutionPolicy Bypass -File tools\Probe-FAFeeds.ps1
 #>
 param(
-    [string]$Season = '2026-27',      # folder name used by openfootball
-    [string]$FdSeason = '2627'        # season code used by football-data.co.uk
+    [string]$Season = '2026-27'       # folder name used by openfootball
 )
 
 $ErrorActionPreference = 'Continue'
@@ -97,7 +97,7 @@ function Read-Key {
 }
 
 Out-Both ('FADash feed probe, {0}' -f (Get-Date).ToString('o'))
-Out-Both 'No odds endpoints are called. Keys are never printed. About 15 requests, one per second.'
+Out-Both 'No odds endpoints are called. Keys are never printed. About 12 requests, one per second.'
 
 # ---- 1. openfootball/england (public domain) -----------------------------------------------------------------------
 Out-Both ''; Out-Both '==== 1. openfootball/england (GitHub, public domain text files) ===='
@@ -116,25 +116,8 @@ if ($first) {
     Out-Both ('score-like patterns in the file: {0} (rough count of results in it)' -f $played)
 }
 
-# ---- 2. football-data.co.uk (CSV) ---------------------------------------------------------------------------------------
-Out-Both ''; Out-Both '==== 2. football-data.co.uk (CSV files; odds columns are not shown or kept) ===='
-$u = "https://www.football-data.co.uk/mmz4281/$FdSeason/E0.csv"
-$r = Get-Probe $u
-Out-Both ''; Out-Both '--- Premier League file'; Out-Both ('GET {0}' -f $u); Out-Both ('status {0}  ok={1}  {2} ms  {3} bytes' -f $r.Status, $r.Ok, $r.Ms, $r.Bytes)
-foreach ($h in 'Content-Type', 'Last-Modified', 'ETag') { if ($r.Headers.ContainsKey($h)) { Out-Both ('header {0}: {1}' -f $h, $r.Headers[$h]) } }
-if ($r.Ok) {
-    $lines = @($r.Body -split "`n" | Where-Object { $_.Trim() })
-    $cols = @($lines[0].TrimEnd("`r") -split ',')
-    $odds = @($cols | Where-Object { $_ -match '^(B365|BW|IW|PS|WH|VC|Max|Avg|BF|1XB|LB|SB|GB|SJ|SO|SY|BbMx|BbAv|BbAH|BbOU|P>|P<|C[ABH]|AH|B1|BFD|BFE|BMGM)' })
-    Out-Both ('rows: {0}  columns: {1}  (of which look like betting columns, ignored: {2})' -f ($lines.Count - 1), $cols.Count, $odds.Count)
-    $keep = @($cols | Where-Object { $odds -notcontains $_ })
-    Out-Both ('non-betting columns: {0}' -f ($keep -join ' '))
-    foreach ($l in ($lines | Select-Object -Skip 1 -First 2)) { Out-Both ('  | ' + ((@($l.TrimEnd("`r") -split ',') | Select-Object -First 8) -join ',')) }
-    Out-Both ('last result row: ' + ((@($lines[-1].TrimEnd("`r") -split ',') | Select-Object -First 8) -join ','))
-}
-
-# ---- 3. football-data.org (API, free key) -------------------------------------------------------------------------------
-Out-Both ''; Out-Both '==== 3. football-data.org (API v4, key) ===='
+# ---- 2. football-data.org (API, free key) -------------------------------------------------------------------------------
+Out-Both ''; Out-Both '==== 2. football-data.org (API v4, key) ===='
 $fdKey = $env:FADASH_FOOTBALLDATA_KEY
 if (-not $fdKey) {
     $fdKey = Read-Key 'football-data.org API key (press Enter to skip)'
@@ -154,8 +137,8 @@ if ($fdKey) {
     $r = Get-Probe $u $h @($fdKey); Show-Probe 'PL matches, 3 days either side (check: which fields, is score live or delayed, are lineups/cards present)' $u $r $hdrs 12 @($fdKey)
 } else { Out-Both 'skipped (no key)' }
 
-# ---- 4. API-Football (api-sports.io, free key; 100 requests a day) ----------------------------------------------------------
-Out-Both ''; Out-Both '==== 4. API-Football (v3, key; no odds endpoint is called) ===='
+# ---- 3. API-Football (api-sports.io, free key; 100 requests a day) ----------------------------------------------------------
+Out-Both ''; Out-Both '==== 3. API-Football (v3, key; no odds endpoint is called) ===='
 $afKey = $env:FADASH_APIFOOTBALL_KEY
 if (-not $afKey) {
     $afKey = Read-Key 'API-Football key (press Enter to skip)'
