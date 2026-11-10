@@ -1,0 +1,341 @@
+{
+ "note": "PRETEND clubs. Made up for the redesign; not real clubs. Replaced when a real data source is chosen.",
+ "clubs": [
+  {
+   "id": "ALD",
+   "abbr": "ALD",
+   "name": "Aldermoor Town",
+   "color": "b91c1c",
+   "league": "pl"
+  },
+  {
+   "id": "BRK",
+   "abbr": "BRK",
+   "name": "Brackenfield City",
+   "color": "1d4ed8",
+   "league": "pl"
+  },
+  {
+   "id": "CRG",
+   "abbr": "CRG",
+   "name": "Cragmoor United",
+   "color": "15803d",
+   "league": "pl"
+  },
+  {
+   "id": "DNW",
+   "abbr": "DNW",
+   "name": "Dunwick Albion",
+   "color": "b45309",
+   "league": "pl"
+  },
+  {
+   "id": "EST",
+   "abbr": "EST",
+   "name": "Eastmere Rovers",
+   "color": "0f766e",
+   "league": "pl"
+  },
+  {
+   "id": "FLL",
+   "abbr": "FLL",
+   "name": "Fallowdale Athletic",
+   "color": "7c3aed",
+   "league": "pl"
+  },
+  {
+   "id": "GRS",
+   "abbr": "GRS",
+   "name": "Gresham Vale",
+   "color": "ea580c",
+   "league": "pl"
+  },
+  {
+   "id": "HRW",
+   "abbr": "HRW",
+   "name": "Harrowfield Wanderers",
+   "color": "0284c7",
+   "league": "pl"
+  },
+  {
+   "id": "IRM",
+   "abbr": "IRM",
+   "name": "Ironmere City",
+   "color": "4b5563",
+   "league": "pl"
+  },
+  {
+   "id": "JRR",
+   "abbr": "JRR",
+   "name": "Jarrowdale Rangers",
+   "color": "be123c",
+   "league": "pl"
+  },
+  {
+   "id": "KLS",
+   "abbr": "KLS",
+   "name": "Kelsmoor County",
+   "color": "65a30d",
+   "league": "pl"
+  },
+  {
+   "id": "LWR",
+   "abbr": "LWR",
+   "name": "Lowerton Town",
+   "color": "ca8a04",
+   "league": "pl"
+  },
+  {
+   "id": "MRB",
+   "abbr": "MRB",
+   "name": "Marbleton United",
+   "color": "1e40af",
+   "league": "ch"
+  },
+  {
+   "id": "NTH",
+   "abbr": "NTH",
+   "name": "Northcombe City",
+   "color": "047857",
+   "league": "ch"
+  },
+  {
+   "id": "OAK",
+   "abbr": "OAK",
+   "name": "Oakhurst Athletic",
+   "color": "a16207",
+   "league": "ch"
+  },
+  {
+   "id": "PLM",
+   "abbr": "PLM",
+   "name": "Plumstead Rovers",
+   "color": "9d174d",
+   "league": "ch"
+  },
+  {
+   "id": "QUY",
+   "abbr": "QUY",
+   "name": "Quayside Town",
+   "color": "0369a1",
+   "league": "ch"
+  },
+  {
+   "id": "RDL",
+   "abbr": "RDL",
+   "name": "Redleigh Albion",
+   "color": "dc2626",
+   "league": "ch"
+  },
+  {
+   "id": "SLV",
+   "abbr": "SLV",
+   "name": "Silverdale County",
+   "color": "64748b",
+   "league": "ch"
+  },
+  {
+   "id": "THR",
+   "abbr": "THR",
+   "name": "Thornbury Wanderers",
+   "color": "166534",
+   "league": "ch"
+  },
+  {
+   "id": "ULV",
+   "abbr": "ULV",
+   "name": "Ulverby United",
+   "color": "6d28d9",
+   "league": "ch"
+  },
+  {
+   "id": "VAL",
+   "abbr": "VAL",
+   "name": "Valebridge City",
+   "color": "c2410c",
+   "league": "ch"
+  },
+  {
+   "id": "WYN",
+   "abbr": "WYN",
+   "name": "Wynstead Rangers",
+   "color": "0e7490",
+   "league": "ch"
+  },
+  {
+   "id": "YAR",
+   "abbr": "YAR",
+   "name": "Yarrowmouth Town",
+   "color": "854d0e",
+   "league": "ch"
+  },
+  {
+   "id": "AXM",
+   "abbr": "AXM",
+   "name": "Axminford Town",
+   "color": "1d4ed8",
+   "league": "l1"
+  },
+  {
+   "id": "BLY",
+   "abbr": "BLY",
+   "name": "Blakeley Rovers",
+   "color": "b91c1c",
+   "league": "l1"
+  },
+  {
+   "id": "CHN",
+   "abbr": "CHN",
+   "name": "Chantry Park",
+   "color": "15803d",
+   "league": "l1"
+  },
+  {
+   "id": "DRY",
+   "abbr": "DRY",
+   "name": "Drayford United",
+   "color": "9a3412",
+   "league": "l1"
+  },
+  {
+   "id": "ENF",
+   "abbr": "ENF",
+   "name": "Enfold City",
+   "color": "7e22ce",
+   "league": "l1"
+  },
+  {
+   "id": "FRS",
+   "abbr": "FRS",
+   "name": "Fairsted Athletic",
+   "color": "0f766e",
+   "league": "l1"
+  },
+  {
+   "id": "GLN",
+   "abbr": "GLN",
+   "name": "Glenmoor Albion",
+   "color": "0369a1",
+   "league": "l1"
+  },
+  {
+   "id": "HLT",
+   "abbr": "HLT",
+   "name": "Holtby County",
+   "color": "a21caf",
+   "league": "l1"
+  },
+  {
+   "id": "IPS",
+   "abbr": "IPS",
+   "name": "Ipsden Wanderers",
+   "color": "ca8a04",
+   "league": "l1"
+  },
+  {
+   "id": "KNG",
+   "abbr": "KNG",
+   "name": "Kingsmere Town",
+   "color": "be185d",
+   "league": "l1"
+  },
+  {
+   "id": "LDG",
+   "abbr": "LDG",
+   "name": "Ludgrove Rangers",
+   "color": "475569",
+   "league": "l1"
+  },
+  {
+   "id": "MLD",
+   "abbr": "MLD",
+   "name": "Meldon United",
+   "color": "059669",
+   "league": "l1"
+  },
+  {
+   "id": "NRW",
+   "abbr": "NRW",
+   "name": "Norwood Vale",
+   "color": "b45309",
+   "league": "l2"
+  },
+  {
+   "id": "OSW",
+   "abbr": "OSW",
+   "name": "Oswick Town",
+   "color": "1e3a8a",
+   "league": "l2"
+  },
+  {
+   "id": "PEN",
+   "abbr": "PEN",
+   "name": "Penhallow Rovers",
+   "color": "dc2626",
+   "league": "l2"
+  },
+  {
+   "id": "RAV",
+   "abbr": "RAV",
+   "name": "Ravensfold City",
+   "color": "111827",
+   "league": "l2"
+  },
+  {
+   "id": "SDB",
+   "abbr": "SDB",
+   "name": "Sandbourne Athletic",
+   "color": "0891b2",
+   "league": "l2"
+  },
+  {
+   "id": "TAV",
+   "abbr": "TAV",
+   "name": "Tavistock Moor",
+   "color": "15803d",
+   "league": "l2"
+  },
+  {
+   "id": "UPL",
+   "abbr": "UPL",
+   "name": "Uplands United",
+   "color": "7c3aed",
+   "league": "l2"
+  },
+  {
+   "id": "WRX",
+   "abbr": "WRX",
+   "name": "Wrexley Albion",
+   "color": "c2410c",
+   "league": "l2"
+  },
+  {
+   "id": "XEN",
+   "abbr": "XEN",
+   "name": "Xenford County",
+   "color": "0d9488",
+   "league": "l2"
+  },
+  {
+   "id": "YOR",
+   "abbr": "YOR",
+   "name": "Yorebridge Town",
+   "color": "9f1239",
+   "league": "l2"
+  },
+  {
+   "id": "ZEL",
+   "abbr": "ZEL",
+   "name": "Zelmoor Rangers",
+   "color": "4d7c0f",
+   "league": "l2"
+  },
+  {
+   "id": "WHM",
+   "abbr": "WHM",
+   "name": "Whitmoor Wanderers",
+   "color": "6b7280",
+   "league": "l2"
+  }
+ ]
+}
