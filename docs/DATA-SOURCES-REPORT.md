@@ -1,35 +1,49 @@
 # FADash data sources report
 
-Status: DRAFT 2 for NBADash's and the owner's review (hand-off v2, item A1). Nothing has been built on any source; the real worker is not approved. Written 2026-11-09. Draft 2 adds candidates 5 to 18 (the owner's list, plus ESPN and BBC) and applies the owner's rules: free only, all four tiers for 2026-27 or say exactly which, terms that allow a personal app with caching and display, no betting data, no scraping (a website with no official API and published terms counts as scraping).
+Status: DRAFT 3 (probe results from 2026-11-09 added) for NBADash's and the owner's review (hand-off v2, item A1). Nothing has been built on any source; the real worker is not approved. Written 2026-11-09. Draft 2 adds candidates 5 to 18 (the owner's list, plus ESPN and BBC) and applies the owner's rules: free only, all four tiers for 2026-27 or say exactly which, terms that allow a personal app with caching and display, no betting data, no scraping (a website with no official API and published terms counts as scraping).
 
 ## Read this first: what is checked and what is not
 
-- I could not reach any of these sites from the build environment (its network only allows package registries and GitHub's own hosts), so **no probe has been run yet**. The probe script is ready (`tools/Probe-FAFeeds.ps1`, run it with `tools\Run-ProbeFAFeeds.bat`) and prints what each source returns; its output finishes this report.
+- I cannot reach these sites from the build environment, so the probe was run by the owner on a Windows PC on 2026-11-09 (22:10). **Probe results** below are primary evidence for what each source returned. API-Football was not probed (no key was entered), so everything about it is still from its documentation and UNVERIFIED.
 - Terms and limits below are quoted from pages I could read (marked **primary**) or from third-party pages (marked **secondary**, treat as unconfirmed). Where I could not read a page I say **UNVERIFIED**. Do not build on an UNVERIFIED line before the terms page has been read in full.
-- I have not checked ESPN. NBADash's choice of ESPN is not assumed for football.
+- ESPN is probed as one more candidate under the shared project policy (see candidate 17). The probe output file is not committed; it holds the owner's account name for football-data.org in one header, which has been removed from the probe for next time.
 
 ## Summary and proposal
 
 | Layer | Source | Covers | Key? | Live? | Betting data in it? |
 |---|---|---|---|---|---|
-| 1 base | openfootball/england (GitHub) | Fixtures and results, all four English tiers | none | No (community updated, lag unknown) | No |
-| 2 live, option a | football-data.org | Premier League and Championship on the free plan (secondary); League One and Two are not on the free plan (secondary) | free key | Delayed on free plan (secondary) | Not mentioned in terms |
+| 1 base | openfootball/england (GitHub) | **Premier League and Championship only for 2026-27** (the probe found just `1-premierleague.txt` and `2-championship.txt`) | none | No | No |
+| 2 live, option a | football-data.org | **Probe confirmed:** a free key sees the Premier League and Championship only (plan TIER_ONE), season 2026, 10 requests a minute | free key | Delayed on free plan (secondary) | Not mentioned in terms |
 | 2 live, option b | API-Football | All four tiers (per their pricing page: "All our plans include all competitions and endpoints."), 100 requests a day free | free key | Fixtures update every 15 seconds in play | **Yes, it has odds endpoints: never called** |
+| 3 candidate (owner's risk decision) | ESPN public JSON (unofficial) | **Probe confirmed: all four tiers for 2026-27 plus FA Cup, Carabao Cup, Community Shield and EFL Trophy** | none | Yes (state, score and goal/card details per match; behaviour during play not yet seen) | **Odds keys are in the responses: dropped by a whitelist** |
 | excluded by the owner | football-data.co.uk | CSV results for English tiers | none | No (weekly, secondary) | **Yes, odds columns in every file** |
 
-Proposal (for your decision):
+Proposal (for your decision, based on the probe):
 
-1. **Base layer, no key:** build the table, results and fixtures from openfootball's public domain files. The table is computed from results, so every league has one. Nothing else is needed for the Table page, the Table Report (item 14), the week bar and the match list.
-2. **Optional live layer, each person's own key:** football-data.org for the Premier League and Championship, and/or API-Football for all four tiers. Off until the person enters a key in Settings. Keys live in the person's settings file only.
-3. **Not proposed:** football-data.co.uk (excluded by the owner: odds in every file); every candidate 5 to 18 below (none passes; see the pass/fail table).
-4. **Still without a source:** injuries, transfers, free agents. Ship the watch list with hand-entered players and leave the feed out until a source passes the terms check (as your section C says).
+1. **Make ESPN the main source, if you accept it for football.** It is the only candidate that serves all four tiers for 2026-27, needs no key, and returns live state, scores, goals and cards, tables, line-ups, match events and crests. It comes with the shared safeguards in candidate 17. It does not give injuries or transfers, and I have not yet seen players with ages.
+2. **openfootball and football-data.org are not needed for the first release if ESPN is accepted.** Both cover only the Premier League and Championship. openfootball stays a possible offline fallback for those two tiers; football-data.org needs a key and gives delayed scores.
+3. **API-Football stays optional** (each person's own key) for what ESPN lacks: injuries, transfers, players and ages. Its terms are still unread and it was not probed.
+4. **If you do not accept ESPN:** the plan falls back to openfootball for two tiers, and League One and League Two have no source that passes.
+5. **Not proposed:** football-data.co.uk (excluded by the owner); candidates 5 to 16 and 18 (all fail).
+6. **Still without a source:** injuries, transfers, free agents. Ship the watch list with hand-entered players.
 
-Open question for you: is a base layer that is not live acceptable for the first release (fixtures, results and tables only, live scores added when a person adds a key)?
+Open question for you: do you accept ESPN for football, on the same terms as NBADash? If yes, a deep probe (League One and League Two checks, player data) is the last step before the worker.
+
+## Probe results (run by the owner on Windows, 2026-11-09 22:10)
+
+19 requests at one per second, no errors, no odds saved, API-Football skipped (no key).
+
+| Source | What came back |
+|---|---|
+| openfootball | The `2026-27` folder holds only `1-premierleague.txt` and `2-championship.txt`. The Premier League file has 380 matches planned, runs "Fri Aug 21 2026 - Sun May 30 2027", and already shows results with half-time scores (about 95 score-like patterns, which includes half-time scores). Raw file 22.8 KB, 259 ms. Plain `text/plain` with an ETag. GitHub API rate limit showed 59 remaining of 60 an hour. **League One and League Two are not available for 2026-27.** |
+| football-data.org (free key) | Competitions visible in England: Championship (ELC) and Premier League (PL), both plan TIER_ONE, 13 competitions in all. Standings and matches both returned for season 2026. A 7-day match window returned 10 played matches in 346 ms. The rate limit header showed 9, then 8, then 7 requests available in the minute, which matches 10 a minute. **No League One or League Two.** |
+| API-Football | Not probed. |
+| ESPN | See candidate 17 for the full results. All eight English competitions answered. |
 
 ## Candidate 1: openfootball/england (public domain files on GitHub)
 
-- **What it covers:** four levels: "I: English Premier League (20 clubs), II: English Championship (24 clubs), III: English League One (24 clubs), IV: English League Two (24 clubs)". Season folders run from 2000-01 through 2026-27, so the current season has a folder. Format is Football.TXT (plain text matches, with scores once played). Fixtures and results by round: yes, as listed in the files. Tables: not provided, computed by us. Line-ups, match events, team stats, players and ages, injuries, transfers, crests: not provided (the page shows squad lists in the format but I did not confirm they are filled for England). Cups: not confirmed (the repo has other folders I could not inspect).
-- **Access:** open, no key. Files are served by GitHub (raw files or the repo), so GitHub's own limits apply (unauthenticated API: 60 requests an hour per address; raw file downloads are not counted the same way, **UNVERIFIED**). Live update speed: none. Delay on results: unknown, depends on volunteers. The repo shows 1,131 commits but I could not see the last commit date. The probe prints `Last-Modified`/`ETag` and the file's result count, which answers this.
+- **What it covers:** the repo's README describes four levels ("I: English Premier League (20 clubs), II: English Championship (24 clubs), III: English League One (24 clubs), IV: English League Two (24 clubs)") and has season folders from 2000-01 through 2026-27. **Correction after the probe: the 2026-27 folder contains only the Premier League and Championship files, so League One and League Two are not covered this season.** I wrongly read the README as promising all four tiers for the current season. Format is Football.TXT (plain text matches, with scores once played). Fixtures and results by round: yes, as listed in the files. Tables: not provided, computed by us. Line-ups, match events, team stats, players and ages, injuries, transfers, crests: not provided (the page shows squad lists in the format but I did not confirm they are filled for England). Cups: not confirmed (the repo has other folders I could not inspect).
+- **Access:** open, no key. Files are served by GitHub (raw files or the repo), so GitHub's own limits apply (unauthenticated API: 60 requests an hour per address; raw file downloads are not counted the same way, **UNVERIFIED**). Live update speed: none. Delay on results: unknown, depends on volunteers. The repo shows 1,131 commits but I could not see the last commit date. The probe showed the Premier League file already has results from the opening weeks; no `Last-Modified` header was returned (only an ETag).
 - **Terms (primary, README):** the data is "dedicated to the public domain. Use as you please with no restrictions whatsoever." The page links a LICENSE.md I did not read in full.
 - **Risks:** volunteer run, so freshness and completeness can lag; not a live feed; file layout can change. No betting data. No crests. Public domain, so no attribution is required, but I would credit it anyway in Settings > Data sources.
 
@@ -44,6 +58,7 @@ Open question for you: is a base layer that is not live acceptable for the first
   - 9.1: "After cancellation of the subscription to the Service, the Customer is not permitted to reference the football data." (So "Clear saved data" must be easy, and we should say so in Settings.)
   - 3.3: usage is monitored under a fair usage policy.
   - Not addressed in the terms I read: personal versus commercial use, caching or storing data, redistribution, betting. Treat caching as unconfirmed and ask them if it matters.
+- **Probe (2026-11-09):** a free key sees only the Championship (ELC) and Premier League (PL), both plan TIER_ONE. Standings (season 2026) and a 7-day match window both worked. The response headers confirmed the 10-requests-a-minute limit. Fields in the matches list beyond the first lines were not inspected.
 - **Risks:** one-person-scale service, free plan can change; scores delayed on the free plan; the key is per application, so each person registers their own key.
 
 ## Candidate 3: API-Football (api-sports.io, free key)
@@ -79,7 +94,7 @@ Rules applied: free only (a paid plan, paid trial, card on file or enterprise co
 | 14 | footballdata.io Premier League API | UNVERIFIED, treated as out | Site could not be read; Premier League only per the name; no free tier found. Out unless a free tier with personal-app terms is shown. |
 | 15 | Enetpulse | FAIL | Business-to-business, sales-tailored pricing, a trial but no free plan. |
 | 16 | Statorium | FAIL | Paid plans with a 5-day trial and a refund guarantee; no free plan on the pricing page. |
-| 17 | ESPN | PENDING PROBE (owner decides after) | Free, no key, unofficial public JSON; no published ESPN terms or limits for this API. Coverage of the four tiers for 2026-27 is not yet shown. See the paragraph under candidate 17. |
+| 17 | ESPN | PASS on coverage and rules, owner decides (shared ESPN policy) | Probe: all four tiers for 2026-27, four cups, live state, tables, events, line-ups, crests, no key; unofficial, so it can change or stop. |
 | 18 | BBC | FAIL | No public football data feed found; BBC Sport is a website, so use would be scraping; full terms UNVERIFIED. |
 
 Evidence for each (primary = the site's own page, secondary = anyone else; UNVERIFIED = I could not read it):
@@ -96,37 +111,49 @@ Evidence for each (primary = the site's own page, secondary = anyone else; UNVER
 - **14. footballdata.io Premier League API.** The page could not be fetched and searches did not find it. Premier League only per its name. No free tier shown. Verdict: UNVERIFIED, out until shown otherwise.
 - **15. Enetpulse.** Primary (FAQ): "Contact our sales team and they will be ready to tailor a package that suits your business."; a trial of "up to 30 days" in one place and "for free for two weeks" in another; the page lists business clients (live score apps, media, broadcasters) and says nothing about individuals; no odds product is mentioned. No free plan. Verdict: out.
 - **16. Statorium.** Primary (pricing page): "Starter, advanced and enterprise plans", "5-day trial available", "30-days full satisfaction or refund guarantee with any subscription"; no free plan is mentioned. Its Terms of use page was not read. Verdict: paid: out.
-- **17. ESPN (unofficial public JSON endpoints, no key).** Same policy as NBADash and NHLDash (injuries and transactions), which use these endpoints as publicly accessible data, with a README "Disclaimer" section, a terms link in `dash.json` and a note in `ARCHITECTURE.md`. This is the owner's risk decision for a hobby project, not a legal clearance and not anything ESPN has agreed to. The wording to use is the README's: unofficial, no published terms or limits from ESPN for this API, can change or stop at any time. Community pages (secondary) show the pattern `https://site.api.espn.com/apis/site/v2/sports/soccer/<league>/scoreboard` (also `/summary?event=<id>`, `/teams`, and `/apis/v2/sports/soccer/<league>/standings`); `eng.1` is the only English code those pages confirm, and the Championship, League One, League Two and cup identifiers are UNVERIFIED, so the probe looks them up rather than assuming them. Safeguards (all of them): no ESPN data in the repo; manual fetching by default, automatic refresh opt-in behind a warning; one request per second and nothing on a timer; only public JSON endpoints, no HTML pages, no login, no other ESPN products; crests fetched to the person's cache, never bundled; **no betting data: the converter keeps a whitelist of fields so odds objects are never cached or shown, and the probe output strips them**; the README disclaimer and terms link in `dash.json`. Verdict: **PENDING PROBE.** If it serves all four tiers for 2026-27 it is the strongest candidate on coverage (openfootball lacks two tiers, football-data.org's free plan covers two); the owner decides after the probe.
+- **17. ESPN (unofficial public JSON endpoints, no key).** Same policy as NBADash and NHLDash (injuries and transactions), which use these endpoints as publicly accessible data, with a README "Disclaimer" section, a terms link in `dash.json` and a note in `ARCHITECTURE.md`. This is the owner's risk decision for a hobby project, not a legal clearance and not anything ESPN has agreed to. The wording to use is the README's: unofficial, no published terms or limits from ESPN for this API, can change or stop at any time. Community pages (secondary) show the pattern `https://site.api.espn.com/apis/site/v2/sports/soccer/<league>/scoreboard` (also `/summary?event=<id>`, `/teams`, and `/apis/v2/sports/soccer/<league>/standings`); `eng.1` is the only English code those pages confirm, and the Championship, League One, League Two and cup identifiers are UNVERIFIED, so the probe looks them up rather than assuming them. Safeguards (all of them): no ESPN data in the repo; manual fetching by default, automatic refresh opt-in behind a warning; one request per second and nothing on a timer; only public JSON endpoints, no HTML pages, no login, no other ESPN products; crests fetched to the person's cache, never bundled; **no betting data: the converter keeps a whitelist of fields so odds objects are never cached or shown, and the probe output strips them**; the README disclaimer and terms link in `dash.json`. **Probe results (owner's PC, 2026-11-09, 13 ESPN requests, all answered, none blocked):**
+  - **Competitions:** ESPN's own league list (220 leagues) gave these English men's identifiers: `eng.1` Premier League, `eng.2` (named "English League Championship"), `eng.3` League One, `eng.4` League Two, `eng.fa` FA Cup, `eng.league_cup` Carabao Cup, `eng.charity` Community Shield, `eng.trophy` EFL Trophy. Every scoreboard returned season 2026 with events from August to November 2026, so the current season is served. Responses took 65 to 245 ms; sizes were 13 to 207 KB.
+  - **Fixtures, results and live state:** each event has an id, date, state (pre, in or post), both sides with abbreviation and score. Scoreboards for the Premier League, Championship and cups list goals and cards per match (5 to 12 entries) without a second call, so scorers can show on the match list.
+  - **Match summary (one Premier League match, 409 KB, 416 ms):** 33 key events (kick-off, yellow cards, goals), 2 line-ups (`rosters`), team box score for both teams, 106 commentary lines. No injuries key in a match summary.
+  - **Tables:** Premier League 20 rows and Championship 24 rows, with games played, wins, ties, losses, goals for and against, goal difference, points, points per game, rank and a `deductions` field. League One and League Two tables were not requested yet.
+  - **Teams and crests:** the Championship team list returned 24 teams with a logo (fetched to cache on first use, never bundled).
+  - **Odds:** the match summary carried `hasOdds` and two other odds-related keys; the probe counted them and did not print them. The worker must keep a whitelist.
+  - **Not yet seen:** League One and League Two completed matches and tables, players with ages (team roster), injuries, transfers. The League One and League Two scoreboards listed 14 November fixtures where some matches showed state "post" with 0-0 and no details; that is probably postponed matches, but the probe did not print the status name. The deep probe (`Run-ProbeFAFeeds-ESPN-deep.bat`, about 12 requests) checks status names, completed League One and League Two matches, their tables, line-ups and a team roster.
+  - **Not yet seen:** how it behaves in play (the probe ran on a Monday night with no live match).
+
+Verdict: **PASS on coverage and the project rules, with the owner's risk decision.** It is the strongest candidate on coverage. The owner has doubts about ESPN for football specifically; the open points are the lower-tier data quality, players and ages, and the fact that it is unofficial and can change or stop at any time.
+
 - **18. BBC.** No public football data API or feed was found. BBC Sport is a website, so any use would be scraping. The BBC Terms of Use page I could reach (a 2020 archive) says "We want everyone to enjoy the BBC. But there are a few rules to stick to." and points to explainers; the full text could not be read: UNVERIFIED. Secondary: news items from this year report the BBC objecting to an AI company reproducing its content (headlines only; I did not read them in full). Verdict: out.
 
 Also noted: the soccerdata package, which many of these scrapers use, says "Please use this web scraping tool responsibly and in compliance with the terms of service of the websites you intend to scrape" and that "any changes to the scraped websites will break the package." That is a reminder of the stability risk for any site that is not an API.
 
-### Ranking of everything that passes or could pass
+### Ranking of everything that passes or could pass (updated with the probe)
 
-Of candidates 5 to 18 only ESPN (17) can be ranked, and only after the probe shows what it serves; the others fail. Ranked by what each remaining source adds (current plan: no-key base plus an optional key). **ESPN is shown last until the probe is run; if it serves all four tiers for 2026-27 with live scores, tables, events and line-ups it moves to first on coverage.**
+Of candidates 5 to 18 only ESPN (17) passes; the others fail. Ranked by what each adds, using the probe where there is one:
 
-1. **API-Football (candidate 3), if its terms pass.** All four tiers in principle, live fixtures every 15 seconds, and the only candidate documented to carry line-ups, match events, team stats, players with ages, injuries, transfers and crests. Needs: terms read in full, confirmation that the free plan returns the 2026-27 season, 100 requests a day is enough for manual fetching. Unlocks the most missing features.
-2. **openfootball/england (candidate 1).** The only one that already passes every requirement: all four tiers, a 2026-27 folder, public domain, no key. Not live, and results only. It is the base layer. Unlocks the Table page, results, fixtures and the Table Report; nothing else.
-3. **football-data.org (candidate 2).** Free key, but Premier League and Championship only (secondary), delayed scores, no line-ups or cards on the free plan. Adds little over API-Football and covers two of four tiers. Its terms are readable and fit our key rule. A fallback if API-Football's terms fail.
-
-4. **ESPN (candidate 17), pending probe.** No key, unofficial, one policy shared with NBADash. Unknowns the probe answers: which English tiers and cups it serves, whether 2026-27 is served, and what it returns for tables, fixtures, results, match events, line-ups and players. Crests come from the teams list.
+1. **ESPN (candidate 17), if the owner accepts it.** All four tiers for 2026-27 plus FA Cup, Carabao Cup, Community Shield and EFL Trophy; no key; live state and scores; goals and cards on the match list; tables (Premier League and Championship verified); line-ups, key events, commentary and team stats per match; crests. Unlocks: match events, line-ups, crests, and live scores for all four tiers. Missing or unseen: injuries (none in match summaries), transfers, players and ages (not yet seen), League One and League Two tables and completed matches (not yet seen). Risk: unofficial; can change or stop at any time; odds keys must be whitelisted out.
+2. **API-Football (candidate 3), if its terms pass.** Not probed and terms unread. All four tiers in principle, and the only candidate documented to carry injuries, transfers and players with ages. Free plan: 100 requests a day. Best used as an optional layer with each person's own key.
+3. **openfootball/england (candidate 1).** No key, public domain, but only the Premier League and Championship for 2026-27, results and fixtures only, not live. Possible offline fallback; it no longer qualifies as a four-tier base layer.
+4. **football-data.org (candidate 2).** Free key, Premier League and Championship only (confirmed), 10 requests a minute, delayed scores. Adds little if ESPN is used.
 
 Excluded by the owner: football-data.co.uk (4).
 
 ## What each source gives, against your list
 
-| Need | openfootball | football-data.org (free) | API-Football (free) |
-|---|---|---|---|
-| Fixtures and results by round | yes | PL, Championship | all four tiers (UNVERIFIED) |
-| Tables | computed by us | yes | yes |
-| Line-ups | no | no (secondary) | documented, UNVERIFIED |
-| Match events (goals, cards, subs) | goals only if listed in the files | no (secondary) | documented, UNVERIFIED |
-| Team stats | no | add-on (secondary) | documented, UNVERIFIED |
-| Players and ages | no | UNVERIFIED | documented, UNVERIFIED |
-| Injuries | no | UNVERIFIED | documented, UNVERIFIED |
-| Transfers | no | UNVERIFIED | documented, UNVERIFIED |
-| Crest images | no | UNVERIFIED (terms silent) | UNVERIFIED |
-| Cups | not confirmed | UNVERIFIED | UNVERIFIED |
+| Need | openfootball | football-data.org (free) | API-Football (free) | ESPN (probe) |
+|---|---|---|---|---|
+| Tiers for 2026-27 | Premier League, Championship | Premier League, Championship | all four (UNVERIFIED) | all four, plus four cups |
+| Fixtures and results | yes | yes | UNVERIFIED | yes |
+| Live state and scores | no | delayed (secondary) | documented, UNVERIFIED | yes, state and score; behaviour in play not yet seen |
+| Tables | computed by us | yes | yes | yes (Premier League, Championship seen; others not yet) |
+| Line-ups | no | no (secondary) | documented, UNVERIFIED | yes (in the match summary) |
+| Match events (goals, cards, subs) | goals only if listed in the files | no (secondary) | documented, UNVERIFIED | yes (key events and commentary; goals and cards also on the scoreboard) |
+| Team stats | no | add-on (secondary) | documented, UNVERIFIED | team box score in the summary |
+| Players and ages | no | UNVERIFIED | documented, UNVERIFIED | not yet seen (deep probe checks the team roster) |
+| Injuries | no | UNVERIFIED | documented, UNVERIFIED | no (no injuries key in a match summary) |
+| Transfers | no | UNVERIFIED | documented, UNVERIFIED | not seen |
+| Crest images | no | UNVERIFIED (terms silent) | UNVERIFIED | yes, logo URLs in the team list (fetch to cache) |
+| Cups | not confirmed | UNVERIFIED | UNVERIFIED | FA Cup, Carabao Cup, Community Shield, EFL Trophy |
 
 Crests: club crests are trademarks, so even where an API serves them I would only fetch to the person's own cache on first use (30-day cache like NHLDash's logos), never bundle them, and fall back to the drawn crest with the club's letters (what the pretend data uses now) when a source does not allow them.
 
@@ -140,11 +167,12 @@ Crests: club crests are trademarks, so even where an API serves them I would onl
 | Crests fetched to the person's cache on first use | As above; not bundled. |
 | Each source and its attribution in Settings > Data sources, requests counted separately | The traffic page already counts per host; each source gets its own host entry. football-data.org attribution text is required by 7.1. |
 | Probe each candidate first | `tools/Probe-FAFeeds.ps1`, about 25 requests at one per second (openfootball, football-data.org, API-Football, ESPN), writes `tools\probe-output\fa-probe-<time>.txt` (not committed). |
-| No scraping | Only published files and documented API endpoints are used. |
+| No scraping | Only published files, documented API endpoints and, for ESPN, the same public JSON endpoints NBADash uses (no HTML pages, no login). |
 
 ## Next steps
 
-1. Run the probe on a Windows machine (double-click `tools\Run-ProbeFAFeeds.bat`; keys optional) and send me the output file. It contains no keys.
-2. Read the API-Football terms page and football-data.org's pricing page in full (I could not), and the football-data.co.uk notes if that source is ever wanted.
-3. Decide the layers (see the open question above). The worker is not built until NBADash and the owner have replied.
-4. Probes: openfootball, football-data.org, API-Football, and ESPN (the owner's risk decision; odds keys stripped); the probe script no longer touches football-data.co.uk (the owner excluded it). No other site without an official API (FBref, Sofascore, FotMob, Understat, Transfermarkt, BBC and similar) is contacted.
+1. Owner: decide whether ESPN is accepted for football (same policy as NBADash).
+2. If yes or maybe: run the deep probe (`tools\Run-ProbeFAFeeds-ESPN-deep.bat`, about 12 requests, no key) and send the output file. It covers League One and League Two completed matches and tables, status names, line-ups and a team roster. The probe no longer prints the football-data.org account name.
+3. Optional: enter an API-Football key and re-run the full probe (`tools\Run-ProbeFAFeeds.bat`) so API-Football can be ranked on evidence; its terms still need reading in full first.
+4. I finish this report with the deep probe results and a final ranking.
+5. The worker is not built until the owner replies to the final report.

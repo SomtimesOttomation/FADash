@@ -16,6 +16,8 @@
       FADASH_FOOTBALLDATA_KEY   football-data.org  (free key, register on their site)
       FADASH_APIFOOTBALL_KEY    API-Football       (free key, register on their site; the free plan has 100 requests per day)
 
+    Run with -Deep (Run-ProbeFAFeeds-ESPN-deep.bat) to do only the ESPN deep check: about 12 requests.
+
     Sources probed:
       1. openfootball/england (public domain text files on GitHub): lists the season folder, reads one league file.
       2. football-data.org (API, key): competition list, then Premier League and Championship matches and table.
@@ -30,7 +32,8 @@
     powershell -NoProfile -ExecutionPolicy Bypass -File tools\Probe-FAFeeds.ps1
 #>
 param(
-    [string]$Season = '2026-27'       # folder name used by openfootball
+    [string]$Season = '2026-27',      # folder name used by openfootball
+    [switch]$Deep                     # only the ESPN deep check (League One, League Two, status names, players)
 )
 
 $ErrorActionPreference = 'Continue'
@@ -86,7 +89,7 @@ function Show-Probe {
     Out-Both ('status {0}  ok={1}  {2} ms  {3} bytes' -f $R.Status, $R.Ok, $R.Ms, $R.Bytes)
     foreach ($h in $HeaderNames) { if ($R.Headers.ContainsKey($h)) { Out-Both ('header {0}: {1}' -f $h, $R.Headers[$h]) } }
     $head = @(([string]$R.Body) -split "`n" | Select-Object -First $Lines)
-    foreach ($l in $head) { Out-Both ('  | ' + $l.TrimEnd("`r").Substring(0, [Math]::Min(180, $l.TrimEnd("`r").Length))) }
+    foreach ($l in $head) { $l = $l.TrimEnd("`r") -replace '"client":"[^"]*"', '"client":"<hidden>"'; Out-Both ('  | ' + $l.Substring(0, [Math]::Min(180, $l.Length))) }
 }
 
 function Read-Key {
@@ -101,6 +104,7 @@ function Read-Key {
 Out-Both ('FADash feed probe, {0}' -f (Get-Date).ToString('o'))
 Out-Both 'No odds endpoints are called. Keys are never printed. About 25 requests, one per second.'
 
+if (-not $Deep) {
 # ---- 1. openfootball/england (public domain) -----------------------------------------------------------------------
 Out-Both ''; Out-Both '==== 1. openfootball/england (GitHub, public domain text files) ===='
 $u = "https://api.github.com/repos/openfootball/england/contents/$Season"
@@ -126,7 +130,7 @@ if (-not $fdKey) {
 }
 if ($fdKey) {
     $h = @{ 'X-Auth-Token' = $fdKey }
-    $hdrs = @('X-Requests-Available-Minute', 'X-RequestCounter-Reset', 'X-Authenticated-Client')
+    $hdrs = @('X-Requests-Available-Minute', 'X-RequestCounter-Reset')
     $u = 'https://api.football-data.org/v4/competitions'
     $r = Get-Probe $u $h @($fdKey); Show-Probe 'competitions your key can see' $u $r $hdrs 3 @($fdKey)
     try { $j = $r.Body | ConvertFrom-Json; Out-Both ('English competitions listed: ' + ((@($j.competitions | Where-Object { $_.area.name -eq 'England' } | ForEach-Object { '{0} ({1}, plan {2})' -f $_.name, $_.code, $_.plan })) -join '; ')) } catch { Out-Both 'could not read the competition list' }
@@ -157,6 +161,7 @@ if ($afKey) {
     $r = Get-Probe $u $h @($afKey); Show-Probe 'League One fixtures today (check: does the free plan return the current season?)' $u $r $hdrs 6 @($afKey)
 } else { Out-Both 'skipped (no key)' }
 
+}
 # ---- 4. ESPN (unofficial public endpoints, no key; owner risk decision) ---------------------------------------------------
 Out-Both ''; Out-Both '==== 4. ESPN (unofficial public JSON endpoints, no key; owner risk decision) ===='
 Out-Both 'Odds-related keys in ESPN responses (odds, pickcenter, againstTheSpread, predictor and similar) are never printed or saved.'
@@ -171,6 +176,7 @@ function Show-EspnKeys {
     Out-Both ('top-level keys: ' + ($keep -join ', '))
     if ($skip.Count -gt 0) { Out-Both ('odds-related keys present and ignored: ' + $skip.Count) }
 }
+if (-not $Deep) {
 $sumEvent = $null; $sumLeague = $null
 # Do not assume league identifiers: ask ESPN which English men's competitions it lists, then probe those (at most 8).
 $u = 'https://sports.core.api.espn.com/v2/sports/soccer/leagues?limit=1000'
@@ -204,7 +210,7 @@ foreach ($lg in $codes) {
         foreach ($e in ($evs | Select-Object -First 3)) {
             $c = $e.competitions[0]
             $sides = @($c.competitors | ForEach-Object { '{0} {1} {2}' -f $_.homeAway, $_.team.abbreviation, $_.score })
-            Out-Both ('  event {0} | {1} | {2} | {3} | details (goals/cards) listed: {4}' -f $e.id, $e.date, $e.status.type.state, ($sides -join ' v '), (Cnt $c.details))
+            Out-Both ('  event {0} | {1} | {2}/{3} | {4} | details (goals/cards) listed: {5}' -f $e.id, $e.date, $e.status.type.state, $e.status.type.name, ($sides -join ' v '), (Cnt $c.details))
         }
         if (-not $sumEvent) {
             $done = $evs | Where-Object { $_.status.type.state -eq 'post' } | Select-Object -First 1
@@ -237,6 +243,75 @@ $r = Get-Probe $u
 Out-Both ''; Out-Both '--- teams eng.2'; Out-Both ('GET {0}' -f $u)
 Out-Both ('status {0}  ok={1}  {2} ms  {3} bytes' -f $r.Status, $r.Ok, $r.Ms, $r.Bytes)
 try { $j = $r.Body | ConvertFrom-Json; $tm = @($j.sports[0].leagues[0].teams); Out-Both ('teams: {0}; first: {1}; logo present: {2}' -f $tm.Count, $tm[0].team.displayName, ($tm[0].team.logos.Count -gt 0)) } catch { Out-Both 'could not read the JSON' }
+
+}
+if ($Deep) {
+    Out-Both ''; Out-Both '==== ESPN deep check: League One, League Two, status names, line-ups, players ===='
+    $sat = Get-Date
+    do { $sat = $sat.AddDays(-1) } while ($sat.DayOfWeek -ne 'Saturday')
+    $ds = $sat.ToString('yyyyMMdd')
+    Out-Both ('Using the last Saturday: {0}' -f $ds)
+    foreach ($lg in 'eng.2', 'eng.3', 'eng.4') {
+        $u = "$espn/$lg/scoreboard?dates=$ds"
+        $r = Get-Probe $u
+        Out-Both ''; Out-Both ('--- scoreboard {0} on {1}' -f $lg, $ds); Out-Both ('GET {0}' -f $u)
+        Out-Both ('status {0}  ok={1}  {2} ms  {3} bytes' -f $r.Status, $r.Ok, $r.Ms, $r.Bytes)
+        if (-not $r.Ok) { continue }
+        $pick = $null
+        try {
+            $j = $r.Body | ConvertFrom-Json
+            Out-Both ('events returned: {0}' -f (Cnt $j.events))
+            foreach ($e in @($j.events | Where-Object { $_ })) {
+                $c = $e.competitions[0]
+                $sides = @($c.competitors | ForEach-Object { '{0} {1} {2}' -f $_.homeAway, $_.team.abbreviation, $_.score })
+                Out-Both ('  event {0} | {1}/{2} | {3} | {4} | details listed: {5}' -f $e.id, $e.status.type.state, $e.status.type.name, $e.status.type.detail, ($sides -join ' v '), (Cnt $c.details))
+                if (-not $pick -and $e.status.type.name -eq 'STATUS_FULL_TIME') { $pick = $e.id }
+            }
+        } catch { Out-Both 'could not read the JSON' }
+        if ($pick) {
+            $u = "$espn/$lg/summary?event=$pick"
+            $r = Get-Probe $u
+            Out-Both ''; Out-Both ('--- match summary {0} event {1} (full time)' -f $lg, $pick); Out-Both ('GET {0}' -f $u)
+            Out-Both ('status {0}  ok={1}  {2} ms  {3} bytes' -f $r.Status, $r.Ok, $r.Ms, $r.Bytes)
+            try {
+                $j = $r.Body | ConvertFrom-Json
+                Show-EspnKeys $j
+                Out-Both ('keyEvents: {0}  rosters: {1}  commentary: {2}  injuries key: {3}' -f (Cnt $j.keyEvents), (Cnt $j.rosters), (Cnt $j.commentary), ($null -ne $j.injuries))
+                if ($j.rosters) { $ro = @($j.rosters[0].roster); Out-Both ('first roster: formation {0}, players {1}, starters {2}; player fields: {3}; athlete fields: {4}' -f $j.rosters[0].formation, $ro.Count, @($ro | Where-Object { $_.starter }).Count, ((@($ro[0].PSObject.Properties | ForEach-Object { $_.Name })) -join ', '), ((@($ro[0].athlete.PSObject.Properties | ForEach-Object { $_.Name })) -join ', ')) }
+            } catch { Out-Both 'could not read the JSON' }
+        } else { Out-Both 'no full-time match found for that Saturday, so no summary was requested' }
+    }
+    foreach ($lg in 'eng.3', 'eng.4') {
+        $u = "https://site.api.espn.com/apis/v2/sports/soccer/$lg/standings"
+        $r = Get-Probe $u
+        Out-Both ''; Out-Both ('--- standings {0}' -f $lg); Out-Both ('GET {0}' -f $u)
+        Out-Both ('status {0}  ok={1}  {2} ms  {3} bytes' -f $r.Status, $r.Ok, $r.Ms, $r.Bytes)
+        try { $j = $r.Body | ConvertFrom-Json; $en = @($j.children[0].standings.entries); Out-Both ('season: {0}; entries: {1}; first: {2}' -f $j.seasons[0].year, $en.Count, $en[0].team.displayName) } catch { Out-Both 'could not read the JSON' }
+    }
+    $u = "$espn/eng.3/teams"
+    $r = Get-Probe $u
+    Out-Both ''; Out-Both '--- teams eng.3'; Out-Both ('GET {0}' -f $u)
+    Out-Both ('status {0}  ok={1}  {2} ms  {3} bytes' -f $r.Status, $r.Ok, $r.Ms, $r.Bytes)
+    $tid = $null
+    try { $j = $r.Body | ConvertFrom-Json; $tm = @($j.sports[0].leagues[0].teams); $tid = $tm[0].team.id; Out-Both ('teams: {0}; first: {1} (id {2})' -f $tm.Count, $tm[0].team.displayName, $tid) } catch { Out-Both 'could not read the JSON' }
+    if ($tid) {
+        $u = "$espn/eng.3/teams/$tid/roster"
+        $r = Get-Probe $u
+        Out-Both ''; Out-Both '--- roster of that team'; Out-Both ('GET {0}' -f $u)
+        Out-Both ('status {0}  ok={1}  {2} ms  {3} bytes' -f $r.Status, $r.Ok, $r.Ms, $r.Bytes)
+        try {
+            $j = $r.Body | ConvertFrom-Json
+            $ath = @($j.athletes)
+            Out-Both ('athletes: {0}' -f $ath.Count)
+            if ($ath.Count -gt 0) {
+                $a = $ath[0]
+                if ($a.PSObject.Properties.Name -contains 'items') { $a = $a.items[0] }
+                Out-Both ('player fields: ' + ((@($a.PSObject.Properties | ForEach-Object { $_.Name })) -join ', '))
+                Out-Both ('sample: {0} | age {1} | born {2} | position {3} | jersey {4}' -f $a.displayName, $a.age, $a.dateOfBirth, $a.position.abbreviation, $a.jersey)
+            }
+        } catch { Out-Both 'could not read the JSON' }
+    }
+}
 
 Out-Both ''
 Out-Both ('Done: {0} request(s). Output saved to {1}' -f $script:Count, $outFile)
