@@ -18,6 +18,7 @@ export function mount(ctx) {
 }
 export function update(topics, ctx) { if (['team', 'standings', 'favorites', 'sync', 'days'].some((t) => topics.has(t))) draw(ctx); }
 
+const dash = (v) => (v === null || v === undefined || v === '' ? '\u2013' : v);
 const POS_ORDER = [['GK', 'Goalkeepers'], ['DF', 'Defenders'], ['MF', 'Midfielders'], ['FW', 'Forwards']];
 
 function draw({ el, arg }) {
@@ -50,14 +51,16 @@ function draw({ el, arg }) {
 
   const err = S.keyError(`team:${arg}`);
   const head = (label, key) => h('th', null, key ? h('span', calc(key, 'player'), label) : label);
+  const real = S.state.source === 'espn';
   const squad = file
     ? POS_ORDER.map(([code, label]) => {
       const rows = file.players.filter((p) => p.pos === code);
       if (!rows.length) return null;
       return h('div', { class: 'card scroll-x', style: { marginBottom: '14px' } }, h('table', { class: 'tbl roster' },
-        h('thead', null, h('tr', null, h('th', null, label), head('Apps', 'apps'), head('G', 'goals'), head('A', 'assists'), head('YC', 'cards'), head('RC', 'cards'))),
-        h('tbody', null, rows.map((p) => h('tr', null, h('td', null, h('b', null, p.name)), h('td', null, p.apps), h('td', null, p.g), h('td', null, p.a), h('td', null, p.yc), h('td', null, p.rc))))));
+        h('thead', null, h('tr', null, h('th', null, label), real ? head('Age') : null, head('Apps', 'apps'), head('G', 'goals'), head('A', 'assists'), head('YC', 'cards'), head('RC', 'cards'))),
+        // The real source's roster has no appearance, goal or card counts: those arrive as null and show as a dash.
+        h('tbody', null, rows.map((p) => h('tr', null, h('td', null, p.no ? h('small', { class: 'muted' }, `${p.no} `) : null, h('b', null, p.name)), real ? h('td', null, dash(p.age)) : null, h('td', null, dash(p.apps)), h('td', null, dash(p.g)), h('td', null, dash(p.a)), h('td', null, dash(p.yc)), h('td', null, dash(p.rc)))))));
     })
     : [err ? failNote(err) : emptyState('Loading...', '')];
-  el.replaceChildren(hero, ...sections, sectionHead('Squad', 'pretend players'), ...squad);
+  el.replaceChildren(hero, ...sections, sectionHead('Squad', S.state.source === 'espn' ? 'from ESPN · appearances, goals and cards are not in this feed' : 'pretend players'), ...squad);
 }

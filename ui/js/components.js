@@ -25,8 +25,12 @@ export function teamLogo(id, size = 40) {
   const t = S.team(id);
   const abbr = t ? t.abbr : id;
   const wrap = h('span', { class: 'logo', style: { '--s': `${size}px`, '--tc': teamColor(t) }, 'data-abbr': abbr, 'data-id': id });
-  const img = h('img', { src: shield(abbr, teamColor(t)), alt: '', width: size, height: size, loading: 'lazy', decoding: 'async' });
+  const drawn = shield(abbr, teamColor(t));
+  const crest = S.crestUrl(id);
+  const img = h('img', { src: crest || drawn, alt: '', width: size, height: size, loading: 'lazy', decoding: 'async' });
+  if (!crest) S.wantCrest(id);
   img.addEventListener('error', () => {
+    if (img.src !== drawn && S.crestUrl(id)) { img.src = drawn; return; }       // a crest file that will not load: back to the drawn shield
     img.remove();
     wrap.classList.add('logo-fallback');
     wrap.append(String(abbr).slice(0, 3));

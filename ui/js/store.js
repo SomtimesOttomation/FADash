@@ -22,6 +22,9 @@ function savedLeague() {
 
 export const state = {
   ready: false,
+  source: 'pretend',        // 'pretend' (default) or 'espn' (hidden switch in the host; the page never offers it)
+  crests: new Map(),        // club id -> crest picture address (a file in the person's cache); only with the real source
+  clubsLoading: false,
   host: bridge.isHost,
   version: '',
   league: savedLeague(),    // the open league pill: pl, ch, l1, l2 or cup
@@ -39,6 +42,7 @@ export const state = {
   seasonStart: '',          // iso date of the season's first Monday
   seasonWeeks: [],          // [{ monday, leagues: [slugs with a saved copy] }]
   pretend: { live: 0, update: false, problem: false, fail: false },
+  clubsError: '',
   update: { phase: 'idle', info: null, pct: 0, text: '', error: '', quiet: false, note: null },
   halted: false,
 };
@@ -163,6 +167,8 @@ function setDay(d, source, at) {
 
 // ---- data from the host ---------------------------------------------------------------------------------------
 function onData(d) {
+  if (d.key.startsWith('crest:')) { onCrest(d); return; }
+  if (d.key.startsWith('clubs:')) { onClubs(d); return; }
   const r = req.get(d.key);
   if (!d.ok) {
     req.set(d.key, { loading: false, error: d.error, done: false });
@@ -191,6 +197,46 @@ function onData(d) {
     state.teamFiles.set(a, d.body); notify('team');
   }
   void r;
+}
+
+// ---- real source only: the club list and the crests -------------------------------------------------------------
+// The clubs are downloaded once, by the person's click (Home notice). Crests are downloaded one at a time to the person's
+// cache the first time a club is drawn; until then, and if a download fails, the drawn shield stays. Nothing is retried.
+const CREST_BASE = 'https://fadash.cache/espn/crests/';
+const crestAsked = new Set();
+export const crestUrl = (id) => state.crests.get(id) || '';
+export function wantCrest(id) {
+  if (state.source !== 'espn' || state.halted || state.crests.has(id) || crestAsked.has(id) || !state.byId.has(id)) return;
+  crestAsked.add(id);
+  bridge.request('data.get', { key: `crest:${id}` }).catch(() => {});
+}
+function onCrest(d) {
+  const id = d.key.slice(6);
+  if (!d.ok) return;                                  // a missing crest is not an error worth a banner: the shield stays
+  state.crests.set(id, `${CREST_BASE}${id}.png?v=${Date.parse(d.at) || 1}`);
+  document.querySelectorAll(`.logo[data-id="${CSS.escape(id)}"] img`).forEach((img) => { img.src = state.crests.get(id); });
+}
+function onClubs(d) {
+  const lg = d.key.slice(6);
+  const left = clubsPending; clubsPending = Math.max(0, left - 1);
+  if (!d.ok) { state.clubsError = d.error || 'The club list did not download.'; } else {
+    for (const c of asArray(d.body?.clubs)) {
+      if (state.byId.has(c.id)) continue;
+      const t = { id: String(c.id), abbr: c.abbr, name: c.name, color: c.color, league: lg };
+      state.teams.push(t); state.byId.set(t.id, t);
+    }
+  }
+  if (!clubsPending) state.clubsLoading = false;
+  notify('teams', 'days', 'favorites');
+}
+let clubsPending = 0;
+export function downloadClubs() {
+  if (state.source !== 'espn' || state.clubsLoading || state.halted) return;
+  state.clubsLoading = true; state.clubsError = ''; clubsPending = 4;
+  notify('teams');
+  for (const lg of ['pl', 'ch', 'l1', 'l2']) {
+    bridge.request('data.get', { key: `clubs:${lg}`, force: true }).catch((e) => { clubsPending = Math.max(0, clubsPending - 1); state.clubsError = e.message; if (!clubsPending) state.clubsLoading = false; notify('teams'); });
+  }
 }
 
 // ---- loading (each view asks for what it shows) ---------------------------------------------------------------
@@ -257,6 +303,7 @@ function takeSnapshot(snap) {
   state.settings = { ...state.settings, ...(snap.settings || {}) };
   state.halted = !!snap.halted;
   if (snap.pretend) state.pretend = snap.pretend;
+  if (snap.source) state.source = snap.source;
 }
 // The live status button: same as the launcher's kill switch, started from inside the dash.
 export async function stopTraffic() { takeSnapshot(await bridge.request('traffic.stop')); req.forEach((v) => { v.loading = false; }); notify('traffic'); }
@@ -300,6 +347,7 @@ export async function init() {
   state.version = info.version || '';
   state.teams = asArray(info.teams);
   state.byId = new Map(state.teams.map((t) => [t.id, t]));
+  for (const t of state.teams) if (t.crest) state.crests.set(t.id, `${CREST_BASE}${t.id}.png`);
   state.seasonStart = info.seasonStart || '';
   state.update.note = info.updateNote || null;
   state.hostMode = info.mode || 'standalone';

@@ -13,6 +13,10 @@ const SLUGS = Object.keys(LEAGUE_NAMES);
 const clubsOf = (lg) => (lg === 'cup' ? CLUBS : CLUBS.filter((c) => c.league === lg));
 const clubById = Object.fromEntries(CLUBS.map((c) => [c.id, c]));
 
+// ?source=espn previews the REAL-source behaviour of the page (hidden switch in the host): no clubs until they are downloaded,
+// crests fetched one by one, squads without appearance numbers. The data is still made up.
+const ESPN = new URLSearchParams(location.search).get('source') === 'espn';
+const known = new Set(ESPN ? [] : CLUBS.map((c) => c.id));
 const settings = { theme: new URLSearchParams(location.search).get('theme') || 'system', autoRefresh: false, autoAck: false, refreshSeconds: 60, favorites: [], updateCheck: false };
 const pretend = { live: 0, update: false, problem: false, fail: false };
 const traffic = { requests: 0, bytes: 0, errors: 0, byKind: {}, byHost: {}, last: [] };
@@ -103,21 +107,25 @@ function body(key) {
   const [kind, a, b] = key.split(':');
   if (kind === 'score') return day(a, b);
   if (kind === 'week') { const m = new Date(`${b}T12:00:00`); return { league: a, monday: b, days: Array.from({ length: 7 }, (_, i) => { const d = new Date(m); d.setDate(d.getDate() + i); return day(a, iso(d)); }) }; }
-  if (kind === 'team') return { id: a, players: squad(a) };
+  if (kind === 'team') return { id: a, players: squad(a).map((p, i) => (ESPN ? { ...p, no: String(i + 1), age: 18 + (i % 15), apps: null, g: null, a: null, yc: null, rc: null } : p)) };
+  if (kind === 'clubs') return { league: a, clubs: clubsOf(a).map((c) => ({ id: c.id, abbr: c.abbr, name: c.name, color: c.color, league: a })) };
+  if (kind === 'crest') return { id: a, file: `espn/crests/${a}.png` };
   return standings(a);
 }
 function valid(key) {
   const [kind, a, b] = key.split(':');
   if ((kind === 'score' || kind === 'week') && SLUGS.includes(a) && /^\d{4}-\d{2}-\d{2}$/.test(b || '')) return kind !== 'week' || new Date(`${b}T12:00:00`).getDay() === 1;
   if (kind === 'standings') return SLUGS.includes(a) && a !== 'cup';
-  if (kind === 'team') return !!clubById[a];
+  if (kind === 'team') return !!clubById[a] && known.has(a);
+  if (ESPN && kind === 'clubs') return ['pl', 'ch', 'l1', 'l2'].includes(a);
+  if (ESPN && kind === 'crest') return known.has(a);
   return false;
 }
 function fetchKey(key) {
   setTimeout(() => {
     const kind = key.split(':')[0];
     traffic.requests++;
-    const host = kind === 'team' ? 'teams.pretend.invalid' : 'scores.pretend.invalid';
+    const host = ESPN ? 'site.api.espn.com' : kind === 'team' ? 'teams.pretend.invalid' : 'scores.pretend.invalid';
     traffic.byHost[host] ||= { requests: 0, bytes: 0, errors: 0 }; traffic.byHost[host].requests++;
     traffic.byKind[kind] ||= { requests: 0, bytes: 0 }; traffic.byKind[kind].requests++;
     if (pretend.fail) {
@@ -129,11 +137,12 @@ function fetchKey(key) {
     traffic.bytes += n; traffic.byHost[host].bytes += n; traffic.byKind[kind].bytes += n;
     traffic.last.unshift({ at: new Date().toISOString(), key, bytes: n, ms: 180, ok: true }); traffic.last.length = Math.min(traffic.last.length, 40);
     if (kind === 'week') saved.add(key.slice(5));
+    if (kind === 'clubs') for (const c of b.clubs) known.add(c.id);
     emit('data', { key, ok: true, cached: false, at: new Date().toISOString(), body: b });
   }, 150);
 }
-const snap = () => ({ mode: 'standalone', version: '0.1.0', theme: '', settings, pretend, halted, live: pretend.live, today: iso(new Date()), seasonStart: iso(seasonStart()),
-  teams: CLUBS, traffic: { requests: traffic.requests, bytes: traffic.bytes, errors: traffic.errors } });
+const snap = () => ({ source: ESPN ? 'espn' : 'pretend', mode: 'standalone', version: '0.1.0', theme: '', settings, pretend, halted, live: pretend.live, today: iso(new Date()), seasonStart: iso(seasonStart()),
+  teams: CLUBS.filter((c) => known.has(c.id)).map((c) => ({ id: c.id, abbr: c.abbr, name: c.name, color: c.color, league: c.league })), traffic: { requests: traffic.requests, bytes: traffic.bytes, errors: traffic.errors } });
 function weeks() {
   const out = [];
   for (let d = seasonStart(); d <= new Date(); d.setDate(d.getDate() + 7)) { const m = iso(d); out.push({ monday: m, leagues: SLUGS.filter((lg) => saved.has(`${lg}:${m}`)) }); }

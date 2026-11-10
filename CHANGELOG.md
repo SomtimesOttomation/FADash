@@ -6,6 +6,15 @@ Release rhythm: changes are merged as they are done without changing VERSION, an
 
 ## Unreleased
 
+### Feature
+- The real ESPN source, built but HIDDEN. Branch `feature/espn-worker`. Pretend data stays the default and what everyone sees; nothing about it changes for a person who installs FADash. The real source switches on only with the environment variable `FADASH_SOURCE=espn` or `"source":"espn"` in `%APPDATA%\FADash\settings.json` (`tools\Switch-FADash-Source.bat espn` does that; `pretend` switches it back), read when FADash starts. Nothing in the page offers it.
+- `modules/FADash.Espn.psm1` downloads ESPN's public JSON (scoreboard, standings, teams, rosters, match summary) and converts it into FADash's own shapes. Each converter builds a new object from a short list of fields it names, so odds, spreads and the like cannot reach the cache or the page (tests check this against responses full of odds). Postponed, cancelled and abandoned matches arrive as upcoming matches with a detail, never as 0-0 results.
+- Safeguards: one request per second whatever is queued; every request counted per server and per kind on the traffic page; only the known public feeds (the address is built from a fixed list, never from the page); paused traffic and the kill switch stop it; a week is one ranged request per competition, falling back to one request per day if ESPN refuses the range; nothing on a timer unless automatic refresh is on.
+- Clubs are downloaded once on a click (Home notice, four requests, kept for a week). Crests are downloaded one at a time to `cache\espn\crests` the first time a club is drawn and are never bundled; the drawn shield stays until then and if a download fails. Clear saved data keeps the crest pictures.
+- Real data differences: the roster feed has age and shirt number but no appearances, goals or cards, so the squad table shows dashes there; the table's form column is empty (ESPN's table has no form). Favourites are kept separately for pretend and real clubs. Season starts on the first Monday on or after 1 August. The Pretend data tab is hidden while the real source is on.
+- Injuries and transfers: still no source; the hand-entered watch list stays. We loop back when a reliable source is found.
+- Needs the owner: README Disclaimer and `dash.json` list ESPN and say what it is (unofficial, no published terms). The terms link in `dash.json` (`disneytermsofuse.com`) is the company-wide terms page, not terms for this API.
+
 ### Redesign
 - Brought FADash up to the current NBADash standard (NAVBAR-SPEC v0.21.x): page order topbar, kill-switch bar, sync strip, league bar, club banner, week bar, navigation bar; nothing above the navigation bar has a bottom margin and hidden bars take no space. Branch `redesign/standard-catch-up`.
 - One dash, five pills in a new league bar: Premier League, Championship, League One, League Two, Cups. The football data is PRETEND (made-up clubs and fixtures, labelled as such) until a real source is chosen and its terms are checked.
