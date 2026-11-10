@@ -21,5 +21,9 @@ Release rhythm: changes are merged as they are done without changing VERSION, an
 - Week bar: calendar weeks (Monday to Sunday) with saved matches for the open league, labelled by their Monday ("w/c 2 Nov"). Matchweek and cup-round labels need the real source and come later.
 - Traffic is counted per data source (host), not per league; the traffic page lists each key, which carries the league. The open league is remembered per viewer.
 - Changing league asks for nothing by itself except what that league's page shows, like opening any other page. Manual fetching stays the default.
+- When matchweek and cup-round labels arrive, the Monday keys stay and the label is added on top, so saved weeks stay valid.
+
+### Housekeeping
+- Windows PowerShell 5.1 note: the backend (`modules/FADash.Host.psm1`) and the scripts were tested under PowerShell 7 only; nobody has run them on Windows PowerShell 5.1 yet. They were searched by hand for PowerShell 7 only syntax (ternary, `??`, `?.`, `&&` and `||` between commands, `-AsHashtable`, `-AsByteStream`, `ForEach-Object -Parallel`, `Join-Path` with extra child paths, .NET Core only calls) and none was found. All scripts are ASCII-only (checked, and the release workflow checks it).
 
 ## Released
