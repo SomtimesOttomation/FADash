@@ -1,0 +1,17 @@
+# WebView2 wrapper DLLs are downloaded by Setup-WebView2.ps1
+lib/*.dll
+# probe and sync output
+probe-output/
+tools/probe-output/
+probe-player-output/
+tools/probe-player-output/
+*.zip
+*.log
+*.tmp
+# editor and OS noise
+.vscode/
+.DS_Store
+Thumbs.db
+
+# test screenshots never belong in the repo
+/*.png

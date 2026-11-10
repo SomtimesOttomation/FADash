@@ -1,0 +1,18 @@
+{
+  "contract": 1,
+  "id": "fadash",
+  "name": "FA",
+  "title": "FA 2026-27",
+  "versionFile": "VERSION",
+  "icon": "ui/img/tab-icon.svg",
+  "backend": "modules/FADash.Host.psm1",
+  "ui": "ui",
+  "entry": "index.html",
+  "standalone": "Start-FADash.bat",
+  "dataSources": [
+    {
+      "name": "GitHub releases (update check, only when you ask)",
+      "terms": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service"
+    }
+  ]
+}
