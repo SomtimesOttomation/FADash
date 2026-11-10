@@ -10,7 +10,7 @@ Release rhythm: changes are merged as they are done without changing VERSION, an
 - Brought FADash up to the current NBADash standard (NAVBAR-SPEC v0.21.x): page order topbar, kill-switch bar, sync strip, league bar, club banner, week bar, navigation bar; nothing above the navigation bar has a bottom margin and hidden bars take no space. Branch `redesign/standard-catch-up`.
 - One dash, five pills in a new league bar: Premier League, Championship, League One, League Two, Cups. The football data is PRETEND (made-up clubs and fixtures, labelled as such) until a real source is chosen and its terms are checked.
 - Football match cards: HT, 45+2', FT, AET and penalties; draws are not dimmed; goal lines; a "Match centre" refresh button on live matches while automatic refresh is off.
-- Tables per league with zone stripes (promotion, play-offs, relegation, European places) driven by the league config in ui/js/leagues.js, plus hover cards for every calculated number.
+- The Standings page is called Table (route `#/table`), one per league, with zone stripes (promotion, play-offs, relegation, European places) driven by the league config in ui/js/leagues.js, plus hover cards for every calculated number.
 - Search over clubs and players with ghost completion, "/" to focus and Esc to clear.
 - New football icon for the launcher tab.
 

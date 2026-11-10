@@ -27,7 +27,7 @@ export function toast(msg) {
 function route() {
   const hash = location.hash.replace(/^#\/?/, '');
   const [name, arg] = hash.split('/');
-  const map = { '': home, team: teamV, standings, week: weekV };
+  const map = { '': home, team: teamV, table: standings, week: weekV };
   const mod = map[name] || home;
   const routeName = map[name] ? (name || 'home') : 'home';
   document.querySelectorAll('#nav a, #btn-home').forEach((a) => a.classList.toggle('active', a.dataset.route === routeName));

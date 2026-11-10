@@ -1,4 +1,4 @@
-// Standings: NBADash's table layout (crest, code, numbers; favourites highlighted; click a row for the club), one table per
+// Table (the Standings page of the other dashes; football calls it the table): NBADash's table layout (crest, code, numbers; favourites highlighted; click a row for the club), one table per
 // league. Zone stripes (promotion, play-offs, relegation, European places) come from the league config in leagues.js, never
 // from this file, so a rule change is a config change.
 import * as S from '../store.js';
@@ -18,17 +18,17 @@ export const formChips = (form) => h('span', { class: 'form' }, (form || []).map
 function draw({ el }) {
   const lg = S.league();
   if (!lg.table) {
-    el.replaceChildren(sectionHead('Standings', lg.name), emptyState('Cups have no table', 'Knock-out ties are on the Matches page. Pick a league above for its table.'));
+    el.replaceChildren(sectionHead('Table', lg.name), emptyState('Cups have no table', 'Knock-out ties are on the Matches page. Pick a league above for its table.'));
     return;
   }
   const st = S.standingsOf(lg.slug);
   const err = S.keyError(`standings:${lg.slug}`);
-  if (!st) { el.replaceChildren(sectionHead('Standings', lg.name), err ? failNote(err) : emptyState('Loading standings...', '')); return; }
+  if (!st) { el.replaceChildren(sectionHead('Table', lg.name), err ? failNote(err) : emptyState('Loading table...', '')); return; }
   const fav = S.favSet();
   const n = st.teams.length;
   const legend = zoneLegend(lg);
   el.replaceChildren(
-    sectionHead('Standings', lg.name),
+    sectionHead('Table', lg.name),
     h('div', { class: 'card scroll-x' }, h('table', { class: 'tbl standings' },
       h('thead', null, h('tr', null, h('th', null, 'Club'), COLS.map(([l, , c]) => h('th', null, c ? h('span', calc(c), l) : l)), h('th', null, h('span', calc('form'), 'Form')))),
       h('tbody', null, st.teams.map((t, i) => {
