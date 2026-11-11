@@ -95,7 +95,7 @@ function Invoke-EspnHttp {
     try {
         # Asked exactly the way the owner's probe asked (Invoke-WebRequest, no extra headers): that is what ESPN answered.
         $r = $null
-        try { $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 20 -UserAgent $script:UserAgent -ErrorAction Stop }
+        try { $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop }   # PowerShell's own user-agent: ESPN refused 'FADash/0.1 (...)' with 403 on 2026-11-10, answered the default
         catch {
             $code = 0
             try { if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode } } catch { }

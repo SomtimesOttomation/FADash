@@ -6,9 +6,9 @@
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
 $u = 'https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/teams'
 $ways = @(
-    @{ Name = 'FADash (as the dash asks)'; UA = 'FADash/0.1 (personal use; manual fetching)' },
+    @{ Name = 'refused on 2026-11-10'; UA = 'FADash/0.1 (personal use; manual fetching)' },
     @{ Name = 'probe of 2026-11-09'; UA = 'FADash-probe/0.1 (personal use; one-off check)' },
-    @{ Name = 'PowerShell default'; UA = '' }
+    @{ Name = 'PowerShell default (as the dash asks)'; UA = '' }
 )
 foreach ($w in $ways) {
     Start-Sleep -Seconds 1
