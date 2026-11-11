@@ -15,6 +15,9 @@ Release rhythm: changes are merged as they are done without changing VERSION, an
 - Injuries and transfers: still no source; the hand-entered watch list stays. We loop back when a reliable source is found.
 - Needs the owner: README Disclaimer and `dash.json` list ESPN and say what it is (unofficial, no published terms). The terms link in `dash.json` (`disneytermsofuse.com`) is the company-wide terms page, not terms for this API.
 
+### Bug/Fix
+- ESPN answered HTTP 403 to every request: it refuses FADash's own user-agent name. FADash now asks the way PowerShell does by default, which ESPN answers (checked on the owner's computer with `tools/Test-EspnAccess.bat`, 3 requests). HTTP errors now name the address path. Branch `fix/espn-403`.
+
 ### Redesign
 - Brought FADash up to the current NBADash standard (NAVBAR-SPEC v0.21.x): page order topbar, kill-switch bar, sync strip, league bar, club banner, week bar, navigation bar; nothing above the navigation bar has a bottom margin and hidden bars take no space. Branch `redesign/standard-catch-up`.
 - One dash, five pills in a new league bar: Premier League, Championship, League One, League Two, Cups. The football data is PRETEND (made-up clubs and fixtures, labelled as such) until a real source is chosen and its terms are checked.
@@ -35,6 +38,8 @@ Release rhythm: changes are merged as they are done without changing VERSION, an
 - When matchweek and cup-round labels arrive, the Monday keys stay and the label is added on top, so saved weeks stay valid.
 
 ### Housekeeping
+- Data sources report (`docs/DATA-SOURCES-REPORT.md`) and the probe scripts (`tools/Probe-FAFeeds.ps1` with its .bat launchers): 18 candidates checked; ESPN chosen, injuries and transfers parked until a reliable source turns up. Branch `housekeeping/data-sources-report`.
+- Test drop-in builds 0.1.1 and 0.1.2 were made from `fix/espn-403`; main stays at 0.1.0 until the next release (0.2.0, because of the ESPN Feature).
 - Windows PowerShell 5.1 note: the backend (`modules/FADash.Host.psm1`) and the scripts were tested under PowerShell 7 only; nobody has run them on Windows PowerShell 5.1 yet. They were searched by hand for PowerShell 7 only syntax (ternary, `??`, `?.`, `&&` and `||` between commands, `-AsHashtable`, `-AsByteStream`, `ForEach-Object -Parallel`, `Join-Path` with extra child paths, .NET Core only calls) and none was found. All scripts are ASCII-only (checked, and the release workflow checks it).
 
 ## Released
