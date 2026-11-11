@@ -30,7 +30,7 @@ function route() {
   const map = { '': home, team: teamV, table: standings, week: weekV };
   const mod = map[name] || home;
   const routeName = map[name] ? (name || 'home') : 'home';
-  document.querySelectorAll('#nav a, #btn-home').forEach((a) => a.classList.toggle('active', a.dataset.route === routeName));
+  document.querySelectorAll('#nav a, #btn-home').forEach((a) => a.classList.toggle('active', a.dataset.route === routeName || (a.dataset.also || '').split(' ').includes(routeName)));
   current?.cleanup?.();
   view.replaceChildren();
   S.newRoute();
