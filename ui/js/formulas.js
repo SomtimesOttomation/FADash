@@ -5,14 +5,17 @@ import { h } from './util.js';
 
 // key -> (scope) => { title, formula, why, note? }
 const DEFS = {
-  gp: () => ({ title: 'Games played', formula: 'GP = games played so far', why: 'How many games the numbers next to it are based on. Early in the season small samples swing a lot.' }),
-  pts: () => ({ title: 'Points', formula: 'PTS = 2 \u00d7 W + 1 \u00d7 OTL', why: 'Standings points: a win is worth 2, an overtime loss 1, a regulation loss 0.' }),
-  ppct: () => ({ title: 'Points percentage', formula: 'P% = PTS / (2 \u00d7 GP)', why: 'Points earned out of points possible, so teams with games in hand compare fairly.' }),
-  otl: () => ({ title: 'Overtime losses', formula: 'OTL = losses after regulation time', why: 'Worth 1 point in the standings, unlike a regulation loss.' }),
-  diff: () => ({ title: 'Goal difference', formula: 'DIFF = Goals for \u2212 Goals against', why: 'How much a team outscores its opponents. A better sign of strength than the record when the record is close.' }),
-  l10: () => ({ title: 'Last 10', formula: 'Record in the last 10 games (W-L-OTL)', why: 'Recent form, which the season record can hide.' }),
-  pm: () => ({ title: 'Plus / Minus', formula: '+/- = Team goals \u2212 Opponent goals while on the ice', why: 'Straight from the box score. Noisy over small samples and heavily tied to teammates.' }),
-  sog: () => ({ title: 'Shots on goal', formula: 'SOG = shots that reached the goalie or went in', why: 'Volume of real chances; a missed or blocked shot does not count.' }),
+  gp: () => ({ title: 'Played', formula: 'P = matches played so far', why: 'How many matches the numbers next to it are based on. Early in the season small samples swing a lot, and clubs can have games in hand.' }),
+  pts: () => ({ title: 'Points', formula: 'PTS = 3 \u00d7 W + 1 \u00d7 D', why: 'League points: three for a win, one for a draw, none for a defeat. Ties on points are split by goal difference, then goals scored.' }),
+  ppg: () => ({ title: 'Points per game', formula: 'PPG = PTS / P', why: 'Points earned per match played, so clubs with games in hand compare fairly.' }),
+  gf: () => ({ title: 'Goals for', formula: 'GF = goals scored in league matches', why: 'The second tie-breaker after goal difference.' }),
+  ga: () => ({ title: 'Goals against', formula: 'GA = goals conceded in league matches', why: 'Half of goal difference; the cleaner a defence, the smaller it is.' }),
+  gd: () => ({ title: 'Goal difference', formula: 'GD = Goals for \u2212 Goals against', why: 'How much a club outscores its opponents. It splits clubs level on points, and is a better sign of strength than the points total when the table is close.' }),
+  form: () => ({ title: 'Form', formula: 'Last 5 league results, oldest on the left (W win, D draw, L defeat)', why: 'Recent form, which the season total can hide.' }),
+  apps: () => ({ title: 'Appearances', formula: 'Apps = matches the player was in the matchday squad and played', why: 'Playing time context for goals and assists.' }),
+  goals: () => ({ title: 'Goals', formula: 'G = goals scored (penalties count, own goals do not)', why: 'Straight from the match reports.' }),
+  assists: () => ({ title: 'Assists', formula: 'A = final pass before a goal, as credited by the data source', why: 'Credited by the source, so definitions can differ between sources.' }),
+  cards: () => ({ title: 'Cards', formula: 'YC = yellow cards, RC = red cards (a second yellow counts as a red)', why: 'Three or more bookings in a short spell can mean a suspension; check the league rules.' }),
 };
 
 export const hasFormula = (key) => !!DEFS[key];

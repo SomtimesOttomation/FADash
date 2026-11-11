@@ -1,14 +1,22 @@
 // Browser preview host, like NBADash's ui/dev/mock.js: open ui/index.html from a local web server (for example
 // `python -m http.server` in the ui folder) and the page runs without PowerShell or WebView2. It answers the same
-// commands as the backend with a small made-up league. Dev only: the real host never loads this file.
+// commands as the backend, with PRETEND clubs and fixtures (ui/data/pretend-clubs.json). Dev only: the real host never loads this file.
+//
+// Keep this in step with modules/FADash.Host.psm1: same keys, same shapes. Keys:
+//   score:<league>:<yyyy-mm-dd>   one day of matches        week:<league>:<monday>   seven days   standings:<league>   team:<club id>
 let emit = () => {};
 export function attach(fn) { emit = fn; }
 
-const CODES = ['AUR', 'BAY', 'CED', 'DUN', 'EMB', 'FOX', 'GLA', 'HAR', 'IRO', 'JUN', 'KES', 'LAN'];
+const CLUBS = (await (await fetch(new URL('../data/pretend-clubs.json', import.meta.url))).json()).clubs;
+const LEAGUE_NAMES = { pl: 'Premier League', ch: 'Championship', l1: 'League One', l2: 'League Two', cup: 'Cups' };
+const SLUGS = Object.keys(LEAGUE_NAMES);
+const clubsOf = (lg) => (lg === 'cup' ? CLUBS : CLUBS.filter((c) => c.league === lg));
+const clubById = Object.fromEntries(CLUBS.map((c) => [c.id, c]));
+
 const settings = { theme: new URLSearchParams(location.search).get('theme') || 'system', autoRefresh: false, autoAck: false, refreshSeconds: 60, favorites: [], updateCheck: false };
 const pretend = { live: 0, update: false, problem: false, fail: false };
 const traffic = { requests: 0, bytes: 0, errors: 0, byKind: {}, byHost: {}, last: [] };
-const saved = new Set();
+const saved = new Set();     // 'pl:2026-10-26'
 let halted = false;
 
 const seed = (s) => { let x = 17; for (const c of s) x = (x * 31 + c.charCodeAt(0)) % 2147483647; return () => (x = (x * 48271) % 2147483647) / 2147483647; };
@@ -16,62 +24,106 @@ const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0
 const monday = (d) => { const x = new Date(d); x.setHours(12, 0, 0, 0); while (x.getDay() !== 1) x.setDate(x.getDate() - 1); return x; };
 const seasonStart = () => { const d = new Date(); d.setDate(d.getDate() - 42); return monday(d); };
 
-function day(dateIso) {
-  const rnd = seed(dateIso);
-  const codes = [...CODES].sort(() => rnd() - 0.5);
+// ---- pretend squads --------------------------------------------------------------------------------------
+const FIRST = ['Alex', 'Sam', 'Jordan', 'Riley', 'Casey', 'Morgan', 'Jamie', 'Taylor', 'Drew', 'Quinn', 'Avery', 'Rowan', 'Emery', 'Parker'];
+const LAST = ['Hale', 'Moreau', 'Lindqvist', 'Okafor', 'Brandt', 'Castell', 'Rook', 'Vance', 'Pike', 'Ferro', 'Holm', 'Sato', 'Weller', 'Dunmore'];
+const POS = ['GK', 'GK', 'DF', 'DF', 'DF', 'DF', 'DF', 'MF', 'MF', 'MF', 'MF', 'MF', 'FW', 'FW', 'FW', 'FW'];
+function squad(id) {
+  const rnd = seed(id);
+  return POS.map((pos, i) => {
+    const apps = 6 + Math.floor(rnd() * 5);
+    const g = pos === 'FW' ? Math.floor(rnd() * 8) : pos === 'MF' ? Math.floor(rnd() * 4) : pos === 'DF' ? Math.floor(rnd() * 2) : 0;
+    const a = pos === 'GK' ? 0 : Math.floor(rnd() * 5);
+    return { id: `${id}${String(i).padStart(2, '0')}`, name: `${FIRST[Math.floor(rnd() * FIRST.length)]} ${LAST[Math.floor(rnd() * LAST.length)]}`, pos, apps, g, a, yc: Math.floor(rnd() * 4), rc: rnd() < 0.08 ? 1 : 0 };
+  });
+}
+const surname = (n) => n.split(' ').slice(1).join(' ');
+
+// ---- pretend matches --------------------------------------------------------------------------------------
+const KICKOFFS = [[12, 30], [15, 0], [15, 0], [17, 30], [20, 0]];
+function day(lg, dateIso) {
+  const rnd = seed(lg + dateIso);
+  const clubs = [...clubsOf(lg)].sort(() => rnd() - 0.5);
   const now = new Date(), isToday = dateIso === iso(now);
-  const n = 3 + Math.floor(rnd() * 3);
+  // Match days: Saturday, Sunday and Tuesday, plus today whatever day it is (so the preview always has something live).
+  if (!isToday && ![0, 2, 6].includes(new Date(`${dateIso}T12:00:00`).getDay())) return { league: lg, date: dateIso.replaceAll('-', ''), events: [] };
+  const n = lg === 'cup' ? 2 : 3 + Math.floor(rnd() * 3);
   const events = [];
   for (let i = 0; i < n; i++) {
-    const start = isToday ? new Date(now.getTime() + [-180, -40, i * 60][Math.min(i, 2)] * 60000) : new Date(`${dateIso}T${18 + i}:00:00`);
-    let a = Math.floor(rnd() * 6), hm = Math.floor(rnd() * 6), ot = false;
-    if (a === hm) { hm++; ot = true; }
-    const mins = (now - start) / 60000;
-    const state = dateIso < iso(now) || (isToday && mins >= 150) ? 'post' : isToday && mins >= 0 ? 'in' : 'pre';
-    if (state === 'in') { a = Math.floor(a * mins / 150); hm = Math.floor(hm * mins / 150); ot = false; }
-    events.push({ id: `${dateIso.replaceAll('-', '')}${i}`, state, date: start.toISOString(), period: state === 'in' ? Math.min(3, 1 + Math.floor(mins / 45)) : state === 'post' ? (ot ? 4 : 3) : 0,
-      clock: state === 'in' ? `${String(19 - Math.floor(mins % 20)).padStart(2, '0')}:${String(Math.floor(rnd() * 60)).padStart(2, '0')}` : '', detail: '', venue: `${codes[2 * i + 1]} Arena`,
-      sides: [{ side: 'away', abbr: codes[2 * i], score: state === 'pre' ? null : String(a), leaders: [] }, { side: 'home', abbr: codes[2 * i + 1], score: state === 'pre' ? null : String(hm), leaders: [] }] });
+    const home = clubs[2 * i + 1], away = clubs[2 * i];
+    let start;
+    if (isToday) start = new Date(now.getTime() + [-130, -25, -70, 40, 150][i % 5] * 60000);
+    else { const [hh, mm] = KICKOFFS[i % 5]; start = new Date(`${dateIso}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00`); }
+    const e = (now - start) / 60000;                      // minutes since kick-off
+    const fin = { home: Math.floor(rnd() * rnd() * 5.2), away: Math.floor(rnd() * rnd() * 4.6) };
+    const goals = ['home', 'away'].flatMap((s) => Array.from({ length: fin[s] }, () => ({ side: s, min: 1 + Math.floor(rnd() * 90), who: surname(squad(s === 'home' ? home.id : away.id)[8 + Math.floor(rnd() * 8)].name) }))).sort((x, y) => x.min - y.min);
+    let state = 'pre', phase = 'pre', clock = '', p = 0;
+    if (dateIso < iso(now) || e >= 111) { state = 'post'; phase = 'FT'; p = 120; }
+    else if (e >= 0) {
+      state = 'in';
+      if (e < 45) { phase = '1H'; p = Math.max(1, Math.floor(e) + 1); clock = `${p}'`; }
+      else if (e < 47) { phase = '1H'; p = 45; clock = `45+${Math.floor(e - 44)}'`; }
+      else if (e < 62) { phase = 'HT'; p = 45; clock = 'HT'; }
+      else { phase = '2H'; p = 46 + Math.floor(e - 62); clock = p > 90 ? `90+${p - 90}'` : `${p}'`; }
+    }
+    const shown = state === 'pre' ? [] : goals.filter((g) => g.min <= p);
+    const side = (s, c) => {
+      const mine = shown.filter((g) => g.side === s);
+      return { side: s, id: c.id, abbr: c.abbr, score: state === 'pre' ? null : String(mine.length), pens: null,
+        scorers: mine.map((g) => ({ min: g.min, name: g.who })) };
+    };
+    const sides = [side('away', away), side('home', home)];
+    if (lg === 'cup' && state === 'post' && fin.home === fin.away) {       // cup ties cannot end level: penalties
+      phase = 'PENS'; const w = rnd() < 0.5 ? 'home' : 'away', hi = 3 + Math.floor(rnd() * 3);
+      sides.forEach((s) => { s.pens = String(s.side === w ? hi : hi - 1 - Math.floor(rnd() * 2)); });
+    }
+    events.push({ id: `${lg}${dateIso.replaceAll('-', '')}${i}`, league: lg, comp: lg === 'cup' ? (rnd() < 0.5 ? 'FA Cup' : 'EFL Cup') : LEAGUE_NAMES[lg],
+      state, phase, date: start.toISOString(), clock, detail: '', venue: `${home.name} ground (pretend)`, sides });
   }
-  return { date: dateIso.replaceAll('-', ''), events };
+  return { league: lg, date: dateIso.replaceAll('-', ''), events };
 }
-function standings() {
-  const r = Object.fromEntries(CODES.map((c) => [c, { code: c, gp: 0, w: 0, l: 0, otl: 0, pts: 0, gf: 0, ga: 0, form: [] }]));
+
+function standings(lg) {
+  const r = Object.fromEntries(clubsOf(lg).map((c) => [c.id, { id: c.id, abbr: c.abbr, gp: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0, form: [] }]));
   for (let d = seasonStart(); iso(d) < iso(new Date()); d.setDate(d.getDate() + 1)) {
-    for (const e of day(iso(d)).events) {
-      const [aw, hm] = e.sides; const ot = e.period > 3;
+    for (const e of day(lg, iso(d)).events) {
+      const [aw, hm] = e.sides;
       for (const [me, op] of [[aw, hm], [hm, aw]]) {
-        const t = r[me.abbr]; t.gp++; t.gf += +me.score; t.ga += +op.score;
-        if (+me.score > +op.score) { t.w++; t.pts += 2; t.form.push('W'); } else if (ot) { t.otl++; t.pts++; t.form.push('O'); } else { t.l++; t.form.push('L'); }
+        const t = r[me.id]; if (!t) continue;
+        t.gp++; t.gf += +me.score; t.ga += +op.score;
+        if (+me.score > +op.score) { t.w++; t.pts += 3; t.form.push('W'); } else if (+me.score === +op.score) { t.d++; t.pts++; t.form.push('D'); } else { t.l++; t.form.push('L'); }
       }
     }
   }
-  return { teams: Object.values(r).map((t) => { const f = t.form.slice(-10); delete t.form; return { ...t, l10: `${f.filter((x) => x === 'W').length}-${f.filter((x) => x === 'L').length}-${f.filter((x) => x === 'O').length}` }; }).sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga)) };
-}
-function teamFile(code) {
-  const rnd = seed(code);
-  const first = ['Alex', 'Sam', 'Jordan', 'Riley', 'Casey', 'Morgan', 'Jamie', 'Taylor'], last = ['Hale', 'Moreau', 'Okafor', 'Brandt', 'Castell', 'Rook', 'Vance', 'Pike'];
-  const players = Array.from({ length: 12 }, (_, i) => { const g = Math.floor(rnd() * 9), a = Math.floor(rnd() * 12); return { id: `${code}${i}`, name: `${first[Math.floor(rnd() * 8)]} ${last[Math.floor(rnd() * 8)]}`, pos: ['F', 'F', 'D'][i % 3], gp: 10 + Math.floor(rnd() * 8), g, a, pts: g + a, pm: Math.floor(rnd() * 15) - 7, sog: g * 4 + Math.floor(rnd() * 25) }; });
-  return { code, players: players.sort((x, y) => y.pts - x.pts) };
+  const rows = Object.values(r).map((t) => ({ ...t, form: t.form.slice(-5) }));
+  rows.sort((x, y) => y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf || x.abbr.localeCompare(y.abbr));
+  return { league: lg, teams: rows };
 }
 function body(key) {
-  const [kind, arg] = key.split(':');
-  if (kind === 'score') return day(arg);
-  if (kind === 'week') { const m = new Date(`${arg}T12:00:00`); return { monday: arg, days: Array.from({ length: 7 }, (_, i) => { const d = new Date(m); d.setDate(d.getDate() + i); return day(iso(d)); }) }; }
-  if (kind === 'team') return teamFile(arg);
-  return standings();
+  const [kind, a, b] = key.split(':');
+  if (kind === 'score') return day(a, b);
+  if (kind === 'week') { const m = new Date(`${b}T12:00:00`); return { league: a, monday: b, days: Array.from({ length: 7 }, (_, i) => { const d = new Date(m); d.setDate(d.getDate() + i); return day(a, iso(d)); }) }; }
+  if (kind === 'team') return { id: a, players: squad(a) };
+  return standings(a);
+}
+function valid(key) {
+  const [kind, a, b] = key.split(':');
+  if ((kind === 'score' || kind === 'week') && SLUGS.includes(a) && /^\d{4}-\d{2}-\d{2}$/.test(b || '')) return kind !== 'week' || new Date(`${b}T12:00:00`).getDay() === 1;
+  if (kind === 'standings') return SLUGS.includes(a) && a !== 'cup';
+  if (kind === 'team') return !!clubById[a];
+  return false;
 }
 function fetchKey(key) {
   setTimeout(() => {
     const kind = key.split(':')[0];
     traffic.requests++;
-    const host = kind === 'team' ? 'teams.sample.invalid' : 'scores.sample.invalid';
+    const host = kind === 'team' ? 'teams.pretend.invalid' : 'scores.pretend.invalid';
     traffic.byHost[host] ||= { requests: 0, bytes: 0, errors: 0 }; traffic.byHost[host].requests++;
     traffic.byKind[kind] ||= { requests: 0, bytes: 0 }; traffic.byKind[kind].requests++;
     if (pretend.fail) {
       traffic.errors++; traffic.byHost[host].errors++;
       traffic.last.unshift({ at: new Date().toISOString(), key, bytes: 0, ms: 0, ok: false });
-      emit('data', { key, ok: false, error: 'Pretend download failure (Sample tools).' }); return;
+      emit('data', { key, ok: false, error: 'Pretend download failure (Pretend data tools).' }); return;
     }
     const b = body(key); const n = JSON.stringify(b).length;
     traffic.bytes += n; traffic.byHost[host].bytes += n; traffic.byKind[kind].bytes += n;
@@ -80,8 +132,13 @@ function fetchKey(key) {
     emit('data', { key, ok: true, cached: false, at: new Date().toISOString(), body: b });
   }, 150);
 }
-const snap = () => ({ mode: 'standalone', version: '0.1.0', theme: '', settings, pretend, halted, live: pretend.live, today: iso(new Date()), traffic: { requests: traffic.requests, bytes: traffic.bytes, errors: traffic.errors } });
-function weeks() { const out = []; for (let d = seasonStart(); d <= new Date(); d.setDate(d.getDate() + 7)) out.push({ monday: iso(d), cached: saved.has(iso(d)) }); return out; }
+const snap = () => ({ mode: 'standalone', version: '0.1.0', theme: '', settings, pretend, halted, live: pretend.live, today: iso(new Date()), seasonStart: iso(seasonStart()),
+  teams: CLUBS, traffic: { requests: traffic.requests, bytes: traffic.bytes, errors: traffic.errors } });
+function weeks() {
+  const out = [];
+  for (let d = seasonStart(); d <= new Date(); d.setDate(d.getDate() + 7)) { const m = iso(d); out.push({ monday: m, leagues: SLUGS.filter((lg) => saved.has(`${lg}:${m}`)) }); }
+  return out;
+}
 
 export async function request(cmd, args = {}) {
   await new Promise((r) => setTimeout(r, 20));
@@ -90,19 +147,26 @@ export async function request(cmd, args = {}) {
     case 'season.weeks': return weeks();
     case 'watch.set': return true;
     case 'data.get':
+      if (!valid(args.key)) throw new Error('unknown data key');
       if (halted) throw new Error('Data traffic is paused.');
-      if (args.cacheOnly) { if (args.key.startsWith('week:') && saved.has(args.key.slice(5))) { emit('data', { key: args.key, ok: true, cached: true, at: new Date().toISOString(), body: body(args.key) }); return 'cached'; } return 'missing'; }
+      if (args.cacheOnly) {
+        if (args.key.startsWith('week:') && saved.has(args.key.slice(5))) { emit('data', { key: args.key, ok: true, cached: true, at: new Date().toISOString(), body: body(args.key) }); return 'cached'; }
+        return 'missing';
+      }
       fetchKey(args.key); return 'queued';
     case 'settings.set': settings[args.key] = args.value; return snap();
-    case 'sample.set': pretend[args.key] = args.key === 'live' ? Math.max(0, args.value) : args.value; return snap();
+    case 'pretend.set': pretend[args.key] = args.key === 'live' ? Math.max(0, args.value) : args.value; return snap();
     case 'traffic.get': return { uptimeSec: Math.round(performance.now() / 1000), ...traffic, last: traffic.last[0] ? traffic.last[0].key : '', lastList: traffic.last };
     case 'traffic.stop': halted = true; emit('traffic', { stopped: true }); return snap();
     case 'traffic.resume': halted = false; emit('traffic', { stopped: false }); return snap();
     case 'sync.run': {
-      const w = weeks(); let i = 0;
-      const step = () => { if (i >= w.length) { emit('sync', { running: false, pct: 100, exitCode: 0, summary: `${w.length} requests`, lastRun: new Date().toISOString() }); return; }
-        fetchKey(`week:${w[i].monday}`); i++; emit('sync', { running: true, pct: Math.round(100 * i / w.length), text: `Downloading ${i} of ${w.length}` }); setTimeout(step, 250); };
-      setTimeout(step, 50); return { started: true, requests: w.length };
+      const keys = [];
+      for (const w of weeks()) for (const lg of SLUGS) if (!w.leagues.includes(lg)) keys.push(`week:${lg}:${w.monday}`);
+      for (const lg of SLUGS.filter((x) => x !== 'cup')) keys.push(`standings:${lg}`);
+      let i = 0;
+      const step = () => { if (i >= keys.length) { emit('sync', { running: false, pct: 100, exitCode: 0, summary: `${keys.length} requests`, lastRun: new Date().toISOString() }); return; }
+        fetchKey(keys[i]); i++; emit('sync', { running: true, pct: Math.round(100 * i / keys.length), text: `Downloading ${i} of ${keys.length}` }); setTimeout(step, 120); };
+      setTimeout(step, 50); return { started: true, requests: keys.length };
     }
     case 'sync.cancel': return true;
     case 'cache.clear': saved.clear(); return true;

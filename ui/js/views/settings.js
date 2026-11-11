@@ -1,5 +1,5 @@
-// Settings: NBADash's overlay with tabs (General, Data, Sync), plus a Sample tab for trying the launcher.
-// Copied from NBADash's views/settings.js; the NBA-only panels (ratings, nightly task, timing) are left out.
+// Settings: NBADash's overlay with tabs (General, Data, Sync), plus a Pretend data tab for trying the launcher while the
+// data is made up. Copied from NBADash's views/settings.js; the NBA-only panels (ratings, nightly task, timing) are left out.
 import * as S from '../store.js';
 import * as bridge from '../bridge.js';
 import { h, ago } from '../util.js';
@@ -18,9 +18,9 @@ function overlay(content) {
 }
 export { overlay };
 
-const TAB_KEY = 'sample.settingsTab';
+const TAB_KEY = 'fadash.settingsTab';
 let settingsTab = 'general';
-try { const v = localStorage.getItem(TAB_KEY); if (['general', 'data', 'sync', 'sample'].includes(v)) settingsTab = v; } catch (e) { /* ignore */ }
+try { const v = localStorage.getItem(TAB_KEY); if (['general', 'data', 'sync', 'pretend'].includes(v)) settingsTab = v; } catch (e) { /* ignore */ }
 
 const hr = () => h('hr', { style: { border: 0, borderTop: '1px solid var(--line)' } });
 
@@ -36,9 +36,9 @@ function generalTab(close, repaint) {
     h('p', null, h('b', null, 'Check for Updates')),
     h('p', null, h('label', null, h('input', { type: 'checkbox', checked: s.updateCheck ? true : null, onchange: (e) => S.saveSettings({ updateCheck: e.target.checked }) }),
       ' Check GitHub for a new version when the app starts '), h('button', { class: 'btn', type: 'button', style: { marginLeft: '8px' }, onclick: () => { close(); openUpdate(); } }, `v${S.state.version || '?'} - Check for updates`)),
-    h('p', null, h('small', null, 'Off by default in the Sample, so it contacts nothing on its own. A real dash turns it on (NBADash does).')),
+    h('p', null, h('small', null, 'Off by default, so it contacts nothing on its own. It only ever talks to GitHub.')),
     hr(),
-    h('p', null, h('b', null, 'Favorites '), favs.size ? [...favs].map((a) => h('span', { style: { marginRight: '6px' } }, teamLogo(a, 26))) : h('small', null, 'none yet – star a team in the banner')),
+    h('p', null, h('b', null, 'Favorites '), favs.size ? [...favs].map((a) => h('span', { style: { marginRight: '6px' }, title: S.team(a)?.name || a }, teamLogo(a, 26))) : h('small', null, 'none yet \u2013 star a club in the banner')),
   ];
 }
 
@@ -67,7 +67,7 @@ function refreshPanel() {
     box.replaceChildren(
       h('p', null, h('b', null, 'Data refresh: automatic '), h('button', { class: 'btn', type: 'button', style: { marginLeft: '8px' }, onclick: () => { S.saveSettings({ autoRefresh: false }); paint(); } }, 'Switch back to manual')),
       h('p', null, h('small', { class: 'warn-text' }, 'Automatic refresh can get you rate-limited or blocked if set too aggressively.')),
-      h('p', null, 'Today’s scores every ', secs, ' seconds while this tab is visible.'));
+      h('p', null, 'Today’s matches of the open league every ', secs, ' seconds while this tab is visible.'));
   };
   paint();
   return box;
@@ -79,14 +79,15 @@ function dataTab() {
     refreshPanel(),
     hr(),
     h('p', null, h('b', null, 'Data sources ')),
-    h('p', null, h('small', null, 'Pretend servers (scores.sample.invalid, teams.sample.invalid). A real dash lists each source here with a link to its terms, as in dash.json.')),
+    h('div', { class: 'card pad fa-notice' }, h('b', null, 'PRETEND DATA. '), 'Every club, match and player in FADash is made up for now. No real source has been chosen yet: the candidates and their terms get checked first, and the chosen source is listed here with its attribution.'),
+    h('p', null, h('small', null, 'Pretend servers (scores.pretend.invalid, teams.pretend.invalid) answer from inside the app; nothing leaves your computer. Each real source will be listed here with a link to its terms, as in dash.json, and counted separately on the traffic page.')),
     h('p', null, h('button', { class: 'btn', type: 'button', onclick: async () => { await bridge.request('cache.clear'); location.reload(); } }, 'Clear saved data'), ' ',
       h('button', { class: 'btn', type: 'button', onclick: () => openTraffic() }, 'Traffic details')),
     void t,
   ].filter(Boolean);
 }
 
-// Sync: NBADash's sync panel with one mode (the Sample's season).
+// Sync: NBADash's sync panel with one mode (the season so far, all leagues).
 function syncPanel() {
   const box = h('div', { class: 'syncpanel' });
   const paint = () => {
@@ -98,7 +99,7 @@ function syncPanel() {
       : h('small', null, sy.summary ? `Last result: ${sy.summary}` : `Last sync ${sy.lastRun ? ago(Date.parse(sy.lastRun)) : 'never'}`);
     box.replaceChildren(
       h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
-        h('button', { class: 'btn', type: 'button', title: 'Every week of the season so far; weeks already saved are not downloaded again', disabled: sy.running || S.state.halted ? true : null, onclick: () => S.runSync().catch((e) => alert(e.message)) }, 'Sync the season')),
+        h('button', { class: 'btn', type: 'button', title: 'Every week of the season so far, for every league; weeks already saved are not downloaded again', disabled: sy.running || S.state.halted ? true : null, onclick: () => S.runSync().catch((e) => alert(e.message)) }, 'Sync the season')),
       h('div', { style: { marginTop: '10px', minHeight: '38px' } }, status));
   };
   const unsub = S.subscribe((t) => { if (t.has('sync')) paint(); });
@@ -109,15 +110,15 @@ function syncTab() {
   return [h('p', null, h('b', null, 'Season sync '), h('small', null, 'Downloads the season one week at a time. Progress also shows in the strip under the top bar and on the launcher’s tab.')), syncPanel()];
 }
 
-// Sample tools: pretend states to try DashLauncher's tab badges, and failing downloads to try the failed-request rule.
+// Pretend data tools: pretend states to try DashLauncher's tab badges, and failing downloads to try the failed-request rule.
 export const hostLog = [];
-function sampleTab(repaint) {
+function pretendTab(repaint) {
   const p = S.state.pretend;
   const set = (k, v) => S.setPretend(k, v).then(repaint).catch(() => {});
   const box = (k, label) => h('p', null, h('label', null, h('input', { type: 'checkbox', checked: p[k] ? true : null, onchange: (e) => set(k, e.target.checked) }), ` ${label}`));
   return [
     h('p', null, h('small', null, 'Not saved. For trying the launcher and the dash’s rules without a real source.')),
-    h('p', null, h('b', null, 'Pretend live games '),
+    h('p', null, h('b', null, 'Pretend live matches '),
       h('button', { class: 'btn', type: 'button', onclick: () => set('live', p.live - 1) }, '−'), ` ${p.live} `,
       h('button', { class: 'btn', type: 'button', onclick: () => set('live', p.live + 1) }, '+')),
     box('update', 'Pretend an update is available (badge on the launcher tab)'),
@@ -134,10 +135,10 @@ export function openSettings() {
     const body = h('div', { class: 'settings-body', role: 'tabpanel' });
     const tabs = h('div', { class: 'seg settings-tabs', role: 'tablist', 'aria-label': 'Settings sections' });
     const paint = () => {
-      tabs.replaceChildren(...[['general', 'General'], ['data', 'Data'], ['sync', 'Sync'], ['sample', 'Sample tools']].map(([k, label]) => h('button', {
+      tabs.replaceChildren(...[['general', 'General'], ['data', 'Data'], ['sync', 'Sync'], ['pretend', 'Pretend data']].map(([k, label]) => h('button', {
         type: 'button', role: 'tab', 'aria-selected': settingsTab === k ? 'true' : 'false', class: settingsTab === k ? 'active' : '',
         onclick: () => { settingsTab = k; try { localStorage.setItem(TAB_KEY, k); } catch (e) { /* ignore */ } paint(); } }, label)));
-      body.replaceChildren(...(settingsTab === 'data' ? dataTab() : settingsTab === 'sync' ? syncTab() : settingsTab === 'sample' ? sampleTab(paint) : generalTab(close, paint)));
+      body.replaceChildren(...(settingsTab === 'data' ? dataTab() : settingsTab === 'sync' ? syncTab() : settingsTab === 'pretend' ? pretendTab(paint) : generalTab(close, paint)));
     };
     paint();
     return h('div', null,

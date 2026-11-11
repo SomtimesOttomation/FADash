@@ -1,9 +1,10 @@
 // FADash page shell. Copied from NBADash's app.js (the gold standard): routing, the sync progress strip, the live
 // status pause switch, the kill-switch bar, the version button, the hidden traffic counter and the navigation bar.
+// Added for football: the league bar (state.league) and search over clubs and players with ghost completion.
 import * as S from './store.js';
 import * as bridge from './bridge.js';
 import { h, ago } from './util.js';
-import { renderBanner, renderWeekBar } from './components.js';
+import { renderBanner, renderWeekBar, renderLeagueBar } from './components.js';
 import * as home from './views/home.js';
 import * as teamV from './views/team.js';
 import * as standings from './views/standings.js';
@@ -26,7 +27,7 @@ export function toast(msg) {
 function route() {
   const hash = location.hash.replace(/^#\/?/, '');
   const [name, arg] = hash.split('/');
-  const map = { '': home, team: teamV, standings, week: weekV };
+  const map = { '': home, team: teamV, table: standings, week: weekV };
   const mod = map[name] || home;
   const routeName = map[name] ? (name || 'home') : 'home';
   document.querySelectorAll('#nav a, #btn-home').forEach((a) => a.classList.toggle('active', a.dataset.route === routeName));
@@ -35,11 +36,11 @@ function route() {
   S.newRoute();
   const ctx = { el: view, arg: arg ? decodeURIComponent(arg) : '' };
   current = { mod, ctx, cleanup: mod.mount(ctx) };
+  renderLeagueBar($('#leaguebar'));
   renderBanner($('#banner'), routeName === 'team' ? ctx.arg : '');
-  renderWeekBar($('#weekbar'), routeName === 'week' ? +ctx.arg : 0);
-  // what the opt-in refresh timer may refetch: today's scores, while they are on screen
-  const t = S.todayKey();
-  bridge.request('watch.set', { keys: routeName === 'home' ? [`score:${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)}`] : [] }).catch(() => {});
+  renderWeekBar($('#weekbar'), routeName === 'week' ? ctx.arg : '');
+  // what the opt-in refresh timer may refetch: today's matches of the open league, while they are on screen
+  bridge.request('watch.set', { keys: routeName === 'home' ? [`score:${S.state.league}:${S.isoOf(S.todayKey())}`] : [] }).catch(() => {});
   window.scrollTo(0, 0);
 }
 
@@ -82,7 +83,7 @@ function liveStatus() {
   const l = S.state.live;
   const anyLive = S.allEvents().some((e) => e.state === 'in') || S.state.pretend.live > 0;
   const halted = !!S.state.halted;
-  const err = l.error || (S.state.pretend.problem ? 'Pretend problem from the Sample dash.' : '');
+  const err = l.error || (S.state.pretend.problem ? 'Pretend problem (Pretend data tools).' : '');
   el.className = `live-status np-live ${anyLive && !halted ? 'on' : ''} ${err && !halted ? 'err' : ''} ${halted ? 'halted' : ''}`;
   el.setAttribute('aria-pressed', halted ? 'true' : 'false');
   const manual = !S.state.settings.autoRefresh;
@@ -144,21 +145,46 @@ $('#btn-refresh').addEventListener('click', async () => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'F5') { e.preventDefault(); $('#btn-refresh').click(); } });
 
-// Search: each dash decides what it searches. The Sample searches teams and the players of team pages already loaded.
+// Search: clubs from the host's list, plus the players of every club page already opened (no lookup request is made: the
+// pretend data has nothing to look up). Ghost completion, Up/Down/Enter, Tab or Right-arrow accepts the suggestion,
+// "/" focuses the box, Esc clears it (NAVBAR-SPEC).
 const res = $('#psearch-results');
-$('#psearch').addEventListener('input', (e) => {
-  const q = e.target.value.trim().toLowerCase();
-  if (!q) { res.hidden = true; return; }
-  const items = S.state.teams.map((t) => ({ label: `${t.name} (${t.abbr})`, href: `#/team/${t.abbr}`, text: `${t.name} ${t.abbr}`.toLowerCase() }));
-  S.state.teamFiles.forEach((f, abbr) => (f?.players || []).forEach((p) => items.push({ label: `${p.name} · ${abbr}`, href: `#/team/${abbr}`, text: p.name.toLowerCase() })));
-  const hits = items.filter((x) => x.text.includes(q)).slice(0, 12);
-  res.replaceChildren(...(hits.length ? hits.map((x) => h('a', { href: x.href }, x.label)) : [h('div', { class: 'empty' }, 'No matches')]));
+const input = $('#psearch');
+const ghost = $('#psearch-ghost');
+const fold = (t) => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+let hits = [], sel = -1;
+function searchIndex() {
+  const items = S.state.teams.map((t) => ({ name: t.name, sub: `${S.league(t.league).short} · ${t.abbr}`, href: `#/team/${t.id}`, kind: 'club' }));
+  S.state.teamFiles.forEach((f, id) => (f?.players || []).forEach((p) => items.push({ name: p.name, sub: `${S.team(id)?.name || id} · ${p.pos}`, href: `#/team/${id}`, kind: 'player' })));
+  return items;
+}
+function closeSearch() { res.hidden = true; ghost.textContent = ''; sel = -1; }
+function paintSearch() {
+  const q = input.value.trim();
+  if (!q) { closeSearch(); return; }
+  const f = fold(q);
+  hits = searchIndex().filter((x) => fold(x.name).includes(f) || fold(x.sub).includes(f))
+    .sort((a, b) => (fold(a.name).startsWith(f) ? 0 : 1) - (fold(b.name).startsWith(f) ? 0 : 1) || a.name.localeCompare(b.name)).slice(0, 12);
+  const top = hits[0];
+  if (top && fold(top.name).startsWith(f) && top.name.length > q.length && input.value === q) ghost.replaceChildren(h('span', { style: { visibility: 'hidden' } }, q), top.name.slice(q.length));
+  else ghost.textContent = '';
+  res.replaceChildren(...(hits.length ? hits.map((x, i) => h('a', { href: x.href, class: i === sel ? 'fa-sug sel' : 'fa-sug' }, h('b', null, x.name), ' ', h('small', null, x.sub))) : [h('div', { class: 'empty' }, 'No matches')]));
   res.hidden = false;
+}
+input.addEventListener('input', () => { sel = -1; paintSearch(); });
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { input.value = ''; closeSearch(); input.blur(); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (hits.length) { sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + hits.length) % hits.length; paintSearch(); } }
+  else if (e.key === 'Enter') { const it = hits[sel >= 0 ? sel : 0]; if (it) { location.hash = it.href; input.value = ''; closeSearch(); input.blur(); } }
+  else if ((e.key === 'Tab' || e.key === 'ArrowRight') && ghost.textContent && input.selectionStart === input.value.length) { e.preventDefault(); input.value = hits[0].name; sel = -1; paintSearch(); }
 });
-res.addEventListener('click', () => { res.hidden = true; $('#psearch').value = ''; });
-document.addEventListener('click', (e) => { if (!e.target.closest('.psearch')) res.hidden = true; });
+input.addEventListener('blur', () => setTimeout(closeSearch, 120));
+res.addEventListener('click', () => { input.value = ''; closeSearch(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '')) { e.preventDefault(); input.focus(); input.select(); }
+});
 
-// Host messages, shown in Settings > Sample tools.
+// Host messages, shown in Settings > Pretend data.
 const log = (text) => { hostLog.unshift({ t: new Date().toLocaleTimeString(), text }); hostLog.length = Math.min(hostLog.length, 8); };
 bridge.on('host.visible', () => log('host.visible: tab shown'));
 bridge.on('host.hidden', () => log('host.hidden: tab hidden'));
@@ -169,8 +195,9 @@ S.subscribe((topics) => {
   if (topics.has('theme') || topics.has('settings')) themeIcon();
   if (topics.has('traffic')) { haltBar(); liveStatus(); }
   if (topics.has('settings') || topics.has('pretend')) liveStatus();
+  if (topics.has('league')) { route(); return; }          // the open league changed: every league-aware page starts again
   if (topics.has('teams') || topics.has('favorites')) renderBanner($('#banner'), location.hash.startsWith('#/team/') ? decodeURIComponent(location.hash.slice(7)) : '');
-  if (topics.has('days')) renderWeekBar($('#weekbar'), location.hash.startsWith('#/week/') ? +location.hash.slice(7) : 0);
+  if (topics.has('days')) { renderLeagueBar($('#leaguebar')); renderWeekBar($('#weekbar'), location.hash.startsWith('#/week/') ? decodeURIComponent(location.hash.slice(7)) : ''); }
   if (topics.has('live') || topics.has('days')) liveStatus();
   if (topics.has('sync')) syncBar();
   if (topics.has('update')) { versionChip(); updateToast(); }

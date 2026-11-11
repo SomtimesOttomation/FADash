@@ -1,36 +1,43 @@
-// App state and data loading. Views subscribe to topics and re-render. Same API and data shapes as NBADash's store.js
-// (state.days, events with sides, favSet, orderedTeams, weeksWithData, sync, update, ...), so NBADash's components and
-// views work as they are. Only the data underneath is the Sample's: a made-up league from pretend servers.
+// App state and data loading. Views subscribe to topics and re-render. Same API shape as NBADash's store.js
+// (state.days, events with sides, favSet, orderedTeams, weeksWithData, sync, update, ...), with one addition: FADash is
+// ONE dash for all English league football, so almost everything is per league (state.league is the pill that is open).
 //
-// To start a real dash, keep this file's shape and replace the data: TEAMS (from your source's team list), the keys
-// asked for in loadDay / loadWeek / loadStandings / loadTeamFile, and what bridge.on('data') does with each body.
+// Design decisions for the league pills (also in CHANGELOG.md):
+//   - Data keys carry the league: score:<lg>:<date>, week:<lg>:<monday>, standings:<lg>, team:<club id>. The host keeps one
+//     cache folder per league, so one league can be refreshed or deleted alone.
+//   - Clubs are keyed by the data source's team id (the pretend feed uses 3-letter ids). Favourites are club ids and work across leagues.
+//   - Banner: favourites from every league first (each with its league tag), then the clubs of the open league. Cups show every club.
+//   - Week bar: calendar weeks (Monday to Sunday) that have saved matches for the open league. Rounds and matchweeks come later.
+//   - Traffic is counted per data source (host), not per league; the traffic page lists keys, which carry the league.
+//   - Changing league asks for nothing by itself except what that league's page shows (like opening any other page).
 import * as bridge from './bridge.js';
 import { etKey, addDaysKey, asArray, fmtKey } from './util.js';
+import { leagueOf, isLeague, DEFAULT_LEAGUE } from './leagues.js';
 
-// The made-up league. A real dash loads its teams from its source (NBADash: the cached teams.json).
-export const TEAMS = [
-  ['AUR', 'Aurora Comets', '0f766e'], ['BAY', 'Bayside Herons', '1d4ed8'], ['CED', 'Cedar Falls Lynx', '15803d'], ['DUN', 'Dunmore Pilots', 'b45309'],
-  ['EMB', 'Ember City Flames', 'dc2626'], ['FOX', 'Foxhollow Rangers', 'ea580c'], ['GLA', 'Glacier Bay Owls', '0284c7'], ['HAR', 'Harbor Point Mariners', '1e3a8a'],
-  ['IRO', 'Ironvale Hammers', '4b5563'], ['JUN', 'Juniper Ridge Elk', '65a30d'], ['KES', 'Kestrel Bay Hawks', '7c3aed'], ['LAN', 'Lantern Hill Sparks', 'ca8a04'],
-].map(([abbr, name, color]) => ({ abbr, name, color }));
+const LEAGUE_STORE = 'fadash.league';
+function savedLeague() {
+  try { const v = localStorage.getItem(LEAGUE_STORE); if (isLeague(v)) return v; } catch (e) { /* storage can be unavailable */ }
+  return DEFAULT_LEAGUE;
+}
 
 export const state = {
   ready: false,
   host: bridge.isHost,
   version: '',
-  teams: TEAMS,
-  byAbbr: new Map(TEAMS.map((t) => [t.abbr, t])),
+  league: savedLeague(),    // the open league pill: pl, ch, l1, l2 or cup
+  teams: [],                // clubs from the host: { id, abbr, name, color, league }
+  byId: new Map(),
   settings: { favorites: [], theme: 'system', updateCheck: false, autoRefresh: false, autoAck: false, refreshSeconds: 60 },
-  days: new Map(),          // 'yyyymmdd' -> { key, events, allFinal, source, at }
-  cachedDayKeys: [],
-  standings: null,          // { teams: [{ code, gp, w, l, otl, pts, gf, ga, l10 }] }
-  teamFiles: new Map(),     // abbr -> { players } | null
+  days: new Map(),          // 'pl:yyyymmdd' -> { key, league, events, allFinal, source, at }
+  cachedDays: new Map(),    // league -> Set of 'yyyymmdd' that came from a saved week
+  standings: new Map(),     // league -> { teams: [{ id, abbr, gp, w, d, l, gf, ga, pts, form }] }
+  teamFiles: new Map(),     // club id -> { players } | null
   live: { ok: true, at: 0, error: '' },
   sync: { running: false, lastRun: null, text: '', pct: 0, exitCode: null, summary: '', finishedAt: 0 },
   flash: new Map(),         // 'eventId:side' -> time of the last score change
-  boxes: new Map(),
   watch: new Set(),
-  seasonWeeks: [],          // Mondays of the season, oldest first: week n is seasonWeeks[n - 1]
+  seasonStart: '',          // iso date of the season's first Monday
+  seasonWeeks: [],          // [{ monday, leagues: [slugs with a saved copy] }]
   pretend: { live: 0, update: false, problem: false, fail: false },
   update: { phase: 'idle', info: null, pct: 0, text: '', error: '', quiet: false, note: null },
   halted: false,
@@ -57,22 +64,26 @@ async function want(key, { force = false, cacheOnly = false } = {}) {
 export async function refresh() {
   if (state.halted) throw new Error('Data traffic is paused. Resume first.');
   const keys = [...routeKeys];
-  if (!keys.length) keys.push(`score:${isoOf(todayKey())}`);
+  if (!keys.length) keys.push(`score:${state.league}:${isoOf(todayKey())}`);
   await Promise.all(keys.map((k) => want(k, { force: true })));
 }
 export const loading = () => [...routeKeys].some((k) => req.get(k)?.loading);
 
-// ---- season weeks: week 1 is the first Monday the season covers ----------------------------------------
+// ---- calendar weeks: Monday to Sunday, labelled by the Monday ---------------------------------------------
 const isoOf = (key) => `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
 const keyOf = (iso) => iso.replaceAll('-', '');
 const keyToUtc = (k) => Date.UTC(+k.slice(0, 4), +k.slice(4, 6) - 1, +k.slice(6, 8));
-export const weekStart = () => (state.seasonWeeks[0] ? keyOf(state.seasonWeeks[0]) : todayKey());
-export const weekOfKey = (k) => Math.floor((keyToUtc(k) - keyToUtc(weekStart())) / 86400000 / 7) + 1;
-export const weekDayKeys = (n) => Array.from({ length: 7 }, (_, i) => addDaysKey(weekStart(), (n - 1) * 7 + i));
-export const weekRangeLabel = (n) => { const d = weekDayKeys(n); const f = (k) => fmtKey(k, { weekday: undefined }); return `${f(d[0])} - ${f(d[6])}`; };
-export const weeksWithData = () => [...new Set(state.cachedDayKeys.filter((k) => k >= weekStart()).map(weekOfKey))].sort((a, b) => a - b);
+export { isoOf, keyOf };
+export const mondayOfKey = (k) => { const dow = (new Date(keyToUtc(k)).getUTCDay() + 6) % 7; return addDaysKey(k, -dow); };       // yyyymmdd -> yyyymmdd of that week's Monday
+export const weekDayKeys = (mondayIso) => Array.from({ length: 7 }, (_, i) => addDaysKey(keyOf(mondayIso), i));
+export const weekRangeLabel = (mondayIso) => { const d = weekDayKeys(mondayIso); const f = (k) => fmtKey(k, { weekday: undefined }); return `${f(d[0])} - ${f(d[6])}`; };
+export const weekLabel = (mondayIso) => `w/c ${fmtKey(keyOf(mondayIso), { weekday: undefined })}`;
+// Mondays (iso) of the weeks that have saved matches for a league.
+export const weeksWithData = (lg = state.league) => [...new Set([...(state.cachedDays.get(lg) || [])].map((k) => isoOf(mondayOfKey(k))))].sort();
+export const fmtIso = (iso) => fmtKey(keyOf(iso), { weekday: undefined });
 export const todayKey = () => etKey(new Date());
 export const yesterdayKey = () => addDaysKey(todayKey(), -1);
+export const dayOf = (lg, key) => state.days.get(`${lg}:${key}`);
 
 // ---- change notification (NBADash's) ----------------------------------------------------------------------
 const subs = new Set();
@@ -88,44 +99,66 @@ export function notify(...topics) {
   });
 }
 
-// ---- helpers (NBADash's) -------------------------------------------------------------------------------------
+// ---- helpers --------------------------------------------------------------------------------------------------
 function normEvent(ev) {
   const e = { ...ev };
   e.id = String(e.id);
-  e.sides = asArray(e.sides).map((s) => ({ ...s, lines: asArray(s.lines), leaders: asArray(s.leaders) }));
+  e.sides = asArray(e.sides).map((s) => ({ ...s, scorers: asArray(s.scorers), leaders: asArray(s.leaders) }));
   return e;
 }
 export const side = (ev, which) => ev.sides.find((s) => s.side === which);
 export const favSet = () => new Set(state.settings.favorites);
-export const isFav = (abbr) => favSet().has(abbr);
-export const team = (abbr) => state.byAbbr.get(abbr);
-export function recordOf(abbr) {
-  const t = (state.standings?.teams || []).find((x) => x.code === abbr);
-  return t ? `${t.w}-${t.l}-${t.otl}` : '';
+export const isFav = (id) => favSet().has(id);
+export const team = (id) => state.byId.get(id);
+export const league = (slug = state.league) => leagueOf(slug);
+export const standingsOf = (lg = state.league) => state.standings.get(lg) || null;
+// "W-D-L" from the club's league table, or '' while the table is not loaded.
+export function recordOf(id) {
+  const c = team(id);
+  const t = c && (state.standings.get(c.league)?.teams || []).find((x) => x.id === id);
+  return t ? `${t.w}-${t.d}-${t.l}` : '';
+}
+// Position in the club's league table (1-based), or 0.
+export function positionOf(id) {
+  const c = team(id);
+  const i = c ? (state.standings.get(c.league)?.teams || []).findIndex((x) => x.id === id) : -1;
+  return i + 1;
 }
 export function allEvents() {
   const out = [];
   state.days.forEach((d) => out.push(...d.events));
   return out;
 }
+// Banner order: favourites from every league first, then the clubs of the open league (Cups: every club, by league).
 export function orderedTeams() {
   const fav = favSet();
   const byName = (a, b) => a.name.localeCompare(b.name);
-  const f = state.teams.filter((t) => fav.has(t.abbr)).sort(byName);
-  const rest = state.teams.filter((t) => !fav.has(t.abbr)).sort(byName);
+  const byTier = (a, b) => leagueOf(a.league).tier - leagueOf(b.league).tier || byName(a, b);
+  const f = state.teams.filter((t) => fav.has(t.id)).sort(byTier);
+  const pool = state.league === 'cup' ? state.teams : state.teams.filter((t) => t.league === state.league);
+  const rest = pool.filter((t) => !fav.has(t.id)).sort(state.league === 'cup' ? byTier : byName);
   return { favorites: f, others: rest, all: [...f, ...rest] };
 }
 
+export function setLeague(slug) {
+  if (!isLeague(slug) || slug === state.league) return;
+  state.league = slug;
+  try { localStorage.setItem(LEAGUE_STORE, slug); } catch (e) { /* ignore */ }
+  notify('league', 'teams', 'days');
+}
+
 function setDay(d, source, at) {
+  const lg = d.league || state.league;
   const key = String(d.date);
-  const prev = state.days.get(key);
-  const next = { key, events: asArray(d.events).map(normEvent), allFinal: asArray(d.events).every((e) => e.state === 'post'), source, at };
-  if (prev) {     // score changes flash for a few seconds, as in NBADash
+  const id = `${lg}:${key}`;
+  const prev = state.days.get(id);
+  const next = { key, league: lg, events: asArray(d.events).map(normEvent), allFinal: asArray(d.events).every((e) => e.state === 'post'), source, at };
+  if (prev) {     // goals flash for a few seconds, as score changes do in NBADash
     const old = new Map();
     prev.events.forEach((e) => e.sides.forEach((s) => old.set(`${e.id}:${s.side}`, s.score)));
     next.events.forEach((e) => e.sides.forEach((s) => { const k = `${e.id}:${s.side}`; if (old.has(k) && old.get(k) !== s.score && e.state === 'in') state.flash.set(k, Date.now()); }));
   }
-  state.days.set(key, next);
+  state.days.set(id, next);
 }
 
 // ---- data from the host ---------------------------------------------------------------------------------------
@@ -139,35 +172,36 @@ function onData(d) {
   }
   req.set(d.key, { loading: false, error: '', done: true });
   const at = Date.parse(d.at) || Date.now();
-  const [kind] = d.key.split(':');
+  const [kind, a, b] = d.key.split(':');
   if (kind === 'score') {
-    setDay(d.body, 'live', at);
-    if (d.key === `score:${isoOf(todayKey())}`) state.live = { ok: true, at, error: '' };
+    setDay({ ...d.body, league: a }, 'live', at);
+    if (b === isoOf(todayKey())) state.live = { ok: true, at, error: '' };
     notify('days', 'live');
   } else if (kind === 'week') {
     for (const day of asArray(d.body.days)) {
       if (day.date > todayKey()) continue;
-      setDay(day, 'saved', at);
-      if (!state.cachedDayKeys.includes(day.date)) state.cachedDayKeys.push(day.date);
+      setDay({ ...day, league: a }, 'saved', at);
+      if (!state.cachedDays.has(a)) state.cachedDays.set(a, new Set());
+      state.cachedDays.get(a).add(day.date);
     }
     notify('days');
   } else if (kind === 'standings') {
-    state.standings = d.body; notify('standings', 'days');
+    state.standings.set(a, d.body); notify('standings', 'days');
   } else if (kind === 'team') {
-    state.teamFiles.set(d.key.slice(5), d.body); notify('team');
+    state.teamFiles.set(a, d.body); notify('team');
   }
   void r;
 }
 
 // ---- loading (each view asks for what it shows) ---------------------------------------------------------------
-export const loadDay = (key, force) => want(`score:${isoOf(key)}`, { force });
-export const loadStandings = (force) => want('standings', { force });
-export const loadTeamFile = (abbr, force) => want(`team:${abbr}`, { force });
+export const loadDay = (key, force, lg = state.league) => want(`score:${lg}:${isoOf(key)}`, { force });
+export const loadStandings = (force, lg = state.league) => (leagueOf(lg).table ? want(`standings:${lg}`, { force }) : Promise.resolve());
+export const loadTeamFile = (id, force) => want(`team:${id}`, { force });
 export async function loadSeasonWeeks() {
   try {
     const weeks = asArray(await bridge.request('season.weeks'));
-    state.seasonWeeks = weeks.map((w) => w.monday);
-    for (const w of weeks) if (w.cached) bridge.request('data.get', { key: `week:${w.monday}`, cacheOnly: true }).catch(() => {});
+    state.seasonWeeks = weeks;
+    for (const w of weeks) for (const lg of asArray(w.leagues)) bridge.request('data.get', { key: `week:${lg}:${w.monday}`, cacheOnly: true }).catch(() => {});
   } catch { state.seasonWeeks = []; }
   notify('days');
 }
@@ -253,17 +287,20 @@ function onSync(d) {
   const wasRunning = state.sync.running;
   state.sync = { ...state.sync, ...d };
   if (wasRunning && d.running === false) state.sync.finishedAt = Date.now();
-  if (d.running === false && !d.cancelled) { loadSeasonWeeks(); want('standings', { force: false, cacheOnly: true }); }
+  if (d.running === false && !d.cancelled) loadSeasonWeeks();
   notify('sync');
 }
-// Sample tools: pretend states for the launcher's tab badges, and failing downloads.
-export async function setPretend(key, value) { takeSnapshot(await bridge.request('sample.set', { key, value })); notify('pretend', 'live'); }
+// Pretend data tools: pretend states for the launcher's tab badges, and failing downloads.
+export async function setPretend(key, value) { takeSnapshot(await bridge.request('pretend.set', { key, value })); notify('pretend', 'live'); }
 
 export async function init() {
   await bridge.ready();
   const info = await bridge.request('init');
   takeSnapshot(info);
   state.version = info.version || '';
+  state.teams = asArray(info.teams);
+  state.byId = new Map(state.teams.map((t) => [t.id, t]));
+  state.seasonStart = info.seasonStart || '';
   state.update.note = info.updateNote || null;
   state.hostMode = info.mode || 'standalone';
   state.hostTheme = info.theme || '';
