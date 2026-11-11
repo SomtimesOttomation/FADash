@@ -22,7 +22,7 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::S
 
 $script:SiteBase = 'https://site.api.espn.com'
 $script:LastRequest = [datetime]::MinValue
-$script:UserAgent = 'FADash (personal football dashboard; manual fetching)'
+$script:UserAgent = 'FADash/0.1 (personal use; manual fetching)'   # same form as the probe that worked on 2026-11-09
 
 $script:LeagueIds = @{
     pl  = @('eng.1')
@@ -56,10 +56,10 @@ function Get-EspnUrl {
     switch ($Op) {
         'scoreboard' {
             if ($Dates -notmatch '^\d{8}(-\d{8})?$') { throw 'Bad date.' }
-            return "$b/apis/site/v2/sports/soccer/$Comp/scoreboard?dates=$Dates&limit=300"
+            return "$b/apis/site/v2/sports/soccer/$Comp/scoreboard?dates=$Dates"
         }
         'standings' { return "$b/apis/v2/sports/soccer/$Comp/standings" }
-        'teams' { return "$b/apis/site/v2/sports/soccer/$Comp/teams?limit=100" }
+        'teams' { return "$b/apis/site/v2/sports/soccer/$Comp/teams" }
         'roster' {
             if ($TeamId -notmatch '^\d{1,9}$') { throw 'Bad team id.' }
             return "$b/apis/site/v2/sports/soccer/$Comp/teams/$TeamId/roster"
@@ -93,25 +93,16 @@ function Invoke-EspnHttp {
     $t0 = Get-Date
     $len = 0
     try {
-        $req = [Net.HttpWebRequest]::Create($Url)
-        $req.UserAgent = $script:UserAgent
-        $req.Timeout = 20000; $req.ReadWriteTimeout = 20000
-        $req.AutomaticDecompression = [Net.DecompressionMethods]::GZip -bor [Net.DecompressionMethods]::Deflate
-        $req.Accept = $(if ($Binary) { 'image/*' } else { 'application/json' })
-        $resp = $null
-        try { $resp = $req.GetResponse() }
-        catch [Net.WebException] {
+        # Asked exactly the way the owner's probe asked (Invoke-WebRequest, no extra headers): that is what ESPN answered.
+        $r = $null
+        try { $r = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 20 -ErrorAction Stop }   # PowerShell's own user-agent: ESPN refused 'FADash/0.1 (...)' with 403 on 2026-11-10, answered the default
+        catch {
             $code = 0
-            if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode }
-            if ($code -gt 0) { throw ('HTTP {0} from {1}' -f $code, $hostName) }
+            try { if ($_.Exception.Response) { $code = [int]$_.Exception.Response.StatusCode } } catch { }
+            if ($code -gt 0) { throw ('HTTP {0} from {1} ({2})' -f $code, $hostName, ([uri]$Url).AbsolutePath) }
             throw ('Could not reach {0}: {1}' -f $hostName, $_.Exception.Message)
         }
-        try {
-            $ms = New-Object IO.MemoryStream
-            $st = $resp.GetResponseStream()
-            $st.CopyTo($ms)
-            $bytes = $ms.ToArray()
-        } finally { $resp.Close() }
+        $bytes = $r.RawContentStream.ToArray()
         $len = $bytes.Length
         $Shared.Bytes += $len; $hs.bytes += $len; $Shared.ByKind[$Kind].bytes += $len
         [void]$Shared.Last.Insert(0, @{ at = $t0.ToString('o'); key = $(if ($Label) { $Label } else { $Kind }); host = $hostName; bytes = $len; ms = [int]((Get-Date) - $t0).TotalMilliseconds; ok = $true })
