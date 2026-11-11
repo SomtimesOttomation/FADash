@@ -6,6 +6,11 @@ Release rhythm: changes are merged as they are done without changing VERSION, an
 
 ## Unreleased
 
+## v0.2.1 (2026-11-12)
+
+### Redesign
+- Matches is the first section tab and opens the main page; Table is second. Matches stays highlighted on week pages.
+
 ## v0.2.0 (2026-11-12)
 
 ### Feature
