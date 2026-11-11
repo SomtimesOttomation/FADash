@@ -6,6 +6,8 @@ Release rhythm: changes are merged as they are done without changing VERSION, an
 
 ## Unreleased
 
+## v0.2.0 (2026-11-12)
+
 ### Feature
 - The real ESPN source, built but HIDDEN. Branch `feature/espn-worker`. Pretend data stays the default and what everyone sees; nothing about it changes for a person who installs FADash. The real source switches on only with the environment variable `FADASH_SOURCE=espn` or `"source":"espn"` in `%APPDATA%\FADash\settings.json` (`tools\Switch-FADash-Source.bat espn` does that; `pretend` switches it back), read when FADash starts. Nothing in the page offers it.
 - `modules/FADash.Espn.psm1` downloads ESPN's public JSON (scoreboard, standings, teams, rosters, match summary) and converts it into FADash's own shapes. Each converter builds a new object from a short list of fields it names, so odds, spreads and the like cannot reach the cache or the page (tests check this against responses full of odds). Postponed, cancelled and abandoned matches arrive as upcoming matches with a detail, never as 0-0 results.
