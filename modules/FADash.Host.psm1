@@ -18,6 +18,10 @@
       - The updater (Update-FADash.ps1 + Apply-Update.ps1) is the same as NHLDash's. It only talks to GitHub, and only
         when the person clicks the version or turns "check on start" on (off by default for now).
 
+    HIDDEN REAL SOURCE (feature/espn-worker): FADash.Espn.psm1 can fetch ESPN's public JSON instead of the pretend servers.
+    It is OFF. It switches on only with the environment variable FADASH_SOURCE=espn or "source":"espn" in settings.json
+    (tools\Set-FADashSource.ps1 does that), read at start. Nothing in the page offers it. See README, Disclaimer.
+
     Pretend data tools (Settings page): pretend live matches, an update or a problem for the launcher's tab badges, and
     pretend that downloads fail, to see the failed-request rule (a failed item waits for Refresh).
 
@@ -53,8 +57,46 @@ $script:Pretend = @{ Live = 0; Update = $false; Problem = $false }
 $script:Leagues = @('pl', 'ch', 'l1', 'l2', 'cup')
 $script:Clubs = @()
 $script:ClubIds = @()
+# Data source: 'pretend' (default, contacts nothing) or 'espn' (hidden switch). Pfx = cache sub-folder for the real source.
+$script:Source = 'pretend'
+$script:Pfx = ''
+
+function Get-SourceName {
+    <# The hidden switch: FADASH_SOURCE=espn, or "source":"espn" in settings.json. Anything else is pretend. #>
+    if ([string]$env:FADASH_SOURCE -ceq 'espn') { return 'espn' }
+    try {
+        if ($script:SettingsFile -and (Test-Path $script:SettingsFile)) {
+            $j = [IO.File]::ReadAllText($script:SettingsFile) | ConvertFrom-Json
+            if ([string]$j.source -ceq 'espn') { return 'espn' }
+        }
+    } catch { }
+    return 'pretend'
+}
+function Get-FavKey { if ($script:Source -eq 'espn') { return 'favoritesEspn' } else { return 'favorites' } }
+
+function Read-EspnClubs {
+    # The clubs saved by the last club download (cache\espn\<league>\clubs.json). Empty until the person downloads them.
+    $by = [ordered]@{}
+    foreach ($lg in @('pl', 'ch', 'l1', 'l2')) {
+        $f = Join-Path $script:CacheDir "espn\$lg\clubs.json"
+        if (-not (Test-Path -LiteralPath $f)) { continue }
+        try {
+            $j = [IO.File]::ReadAllText($f, [Text.Encoding]::UTF8) | ConvertFrom-Json
+            foreach ($c in @($j.clubs)) {
+                if ([string]$c.id -notmatch '^\d{1,9}$') { continue }
+                if (-not $by.Contains([string]$c.id)) { $by[[string]$c.id] = [ordered]@{ id = [string]$c.id; abbr = [string]$c.abbr; name = [string]$c.name; color = [string]$c.color; league = $lg; logo = [string]$c.logo } }
+            }
+        } catch { }
+    }
+    return @($by.Values)
+}
 
 function Read-Clubs {
+    if ($script:Source -eq 'espn') {
+        $script:Clubs = @(Read-EspnClubs)
+        $script:ClubIds = @($script:Clubs | ForEach-Object { $_.id })
+        return
+    }
     $p = Join-Path (Join-Path (Join-Path $script:Root 'ui') 'data') 'pretend-clubs.json'
     try {
         $j = [IO.File]::ReadAllText($p, [Text.Encoding]::UTF8) | ConvertFrom-Json
@@ -64,7 +106,7 @@ function Read-Clubs {
 }
 
 function New-DefaultSettings {
-    return [ordered]@{ theme = 'system'; autoRefresh = $false; autoAck = $false; refreshSeconds = 60; favorites = @(); updateCheck = $false }
+    return [ordered]@{ theme = 'system'; autoRefresh = $false; autoAck = $false; refreshSeconds = 60; favorites = @(); updateCheck = $false; source = 'pretend'; favoritesEspn = @() }
 }
 
 # ---------------------------------------------------------------- page messages
@@ -88,7 +130,9 @@ function Read-Settings {
     $s.autoRefresh = [bool]$s.autoRefresh; $s.autoAck = [bool]$s.autoAck; $s.updateCheck = [bool]$s.updateCheck
     $s.refreshSeconds = Limit-Seconds $s.refreshSeconds
     if (@('system', 'light', 'dark') -notcontains [string]$s.theme) { $s.theme = 'system' }
-    $s.favorites = Limit-Teams $s.favorites
+    if (@('pretend', 'espn') -notcontains [string]$s.source) { $s.source = 'pretend' }
+    $s.favorites = Limit-Teams $s.favorites -ForSource 'pretend'
+    $s.favoritesEspn = Limit-Teams $s.favoritesEspn -ForSource 'espn'
     return $s
 }
 function Save-Settings {
@@ -96,15 +140,31 @@ function Save-Settings {
 }
 function Limit-Teams {
     # Several favourites, in the order they were starred; only known club ids.
-    param($Value)
+    # The two lists (pretend and real) are kept apart; only the list of the running source is checked against the known clubs.
+    param($Value, [string]$ForSource = '')
+    if (-not $ForSource) { $ForSource = $script:Source }
     $out = New-Object System.Collections.Generic.List[string]
-    foreach ($t in @($Value)) { $v = [string]$t; if ($script:ClubIds -ccontains $v -and -not $out.Contains($v)) { $out.Add($v) } }
+    foreach ($t in @($Value)) {
+        $v = [string]$t
+        if ($out.Contains($v)) { continue }
+        if ($ForSource -ne $script:Source) { if ($v -cmatch '^[A-Za-z0-9]{1,12}$') { $out.Add($v) }; continue }
+        if ($ForSource -eq 'espn' -and $script:ClubIds.Count -eq 0) { if ($v -cmatch '^\d{1,9}$') { $out.Add($v) }; continue }   # clubs not downloaded yet: keep the ids
+        if ($script:ClubIds -ccontains $v) { $out.Add($v) }
+    }
     return , $out.ToArray()
 }
 function Limit-Seconds { param($Value) $n = 60; try { $n = [int]$Value } catch { }; return [Math]::Max(20, [Math]::Min(600, $n)) }
 
 # ---------------------------------------------------------------- data keys
 function Get-SeasonStart {
+    if ($script:Source -eq 'espn') {
+        # The real season: the first Monday on or after 1 August of the season's year (the cups and the Community Shield start in August).
+        $n = Get-Date
+        $yr = $(if ($n.Month -ge 7) { $n.Year } else { $n.Year - 1 })
+        $d = New-Object DateTime $yr, 8, 1
+        while ($d.DayOfWeek -ne 'Monday') { $d = $d.AddDays(1) }
+        return $d
+    }
     # The pretend season always started on the Monday six weeks ago, so there are a few weeks to show.
     $d = (Get-Date).Date.AddDays(-42)
     while ($d.DayOfWeek -ne 'Monday') { $d = $d.AddDays(-1) }
@@ -117,12 +177,56 @@ function Get-SeasonWeeks {
     return , $list
 }
 
+function Resolve-EspnKey {
+    <# The same page keys for the real source, plus clubs:<league>, crest:<club id> and match:<competition>:<event id>.
+       Every file lives under cache\espn\. The page never supplies a URL; the worker builds it from these fields only. #>
+    param([string]$k, [string]$today)
+    $u = 'https://site.api.espn.com/'
+    if ($k -cmatch '^score:(pl|ch|l1|l2|cup):(\d{4}-\d{2}-\d{2})$') {
+        $lg = $Matches[1]; $day = $Matches[2]
+        try { [void][datetime]::ParseExact($day, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture) } catch { return $null }
+        $ttl = $(if ($day -lt $today) { 3600 } else { 30 })
+        return @{ Key = $k; Url = $u; Op = 'day'; Lg = $lg; Day = $day.Replace('-', ''); File = "espn\$lg\score-$day.json"; Ttl = $ttl }
+    }
+    if ($k -cmatch '^week:(pl|ch|l1|l2|cup):(\d{4}-\d{2}-\d{2})$') {
+        $lg = $Matches[1]; $day = $Matches[2]
+        try { $d = [datetime]::ParseExact($day, 'yyyy-MM-dd', [Globalization.CultureInfo]::InvariantCulture) } catch { return $null }
+        if ($d.DayOfWeek -ne 'Monday') { return $null }
+        $ttl = $(if ($d.AddDays(8) -lt (Get-Date).Date) { 2592000 } else { 600 })
+        return @{ Key = $k; Url = $u; Op = 'week'; Lg = $lg; Monday = $day; File = "espn\$lg\week-$day.json"; Ttl = $ttl }
+    }
+    if ($k -cmatch '^standings:(pl|ch|l1|l2)$') {
+        $lg = $Matches[1]
+        return @{ Key = $k; Url = $u; Op = 'standings'; Lg = $lg; File = "espn\$lg\standings.json"; Ttl = 600 }
+    }
+    if ($k -cmatch '^clubs:(pl|ch|l1|l2)$') {
+        $lg = $Matches[1]
+        return @{ Key = $k; Url = $u; Op = 'clubs'; Lg = $lg; File = "espn\$lg\clubs.json"; Ttl = 604800 }
+    }
+    if ($k -cmatch '^team:(\d{1,9})$' -and $script:ClubIds -ccontains $Matches[1]) {
+        $id = $Matches[1]
+        $club = $script:Clubs | Where-Object { $_.id -ceq $id } | Select-Object -First 1
+        return @{ Key = $k; Url = $u; Op = 'team'; Lg = $club.league; Id = $id; File = "espn\$($club.league)\team-$id.json"; Ttl = 21600 }
+    }
+    if ($k -cmatch '^crest:(\d{1,9})$' -and $script:ClubIds -ccontains $Matches[1]) {
+        $id = $Matches[1]
+        $club = $script:Clubs | Where-Object { $_.id -ceq $id } | Select-Object -First 1
+        if (-not $club.logo) { return $null }
+        return @{ Key = $k; Url = $u; Op = 'crest'; Lg = $club.league; Id = $id; Logo = [string]$club.logo; File = "espn\crests\$id.json"; Ttl = 7776000 }
+    }
+    if ($k -cmatch '^match:(pl|ch|l1|l2|fa|efl|cs|trophy):(\d{1,12})$') {
+        return @{ Key = $k; Url = $u; Op = 'match'; Comp = $Matches[1]; Id = $Matches[2]; File = "espn\match\$($Matches[1])-$($Matches[2]).json"; Ttl = 120 }
+    }
+    return $null
+}
+
 function Resolve-DataKey {
     <# Turns a page key into a request spec, or $null if the key is not allowed. The page never supplies a URL.
        Every file lives in its league's cache folder (cache\pl, cache\ch, ...). #>
     param([string]$Key)
     $k = [string]$Key
     $today = (Get-Date).ToString('yyyy-MM-dd')
+    if ($script:Source -eq 'espn') { return (Resolve-EspnKey $k $today) }
     if ($k -cmatch '^score:(pl|ch|l1|l2|cup):(\d{4}-\d{2}-\d{2})$') {
         $lg = $Matches[1]; $day = $Matches[2]
         $ttl = if ($day -lt $today) { 3600 } else { 15 }
@@ -179,7 +283,8 @@ function Request-Data {
 
 # ---------------------------------------------------------------- worker runspace
 $script:WorkerScript = {
-    param($Shared, $Queue, $Out, $CacheDir, $Clubs)
+    param($Shared, $Queue, $Out, $CacheDir, $Clubs, $Source, $EspnModule)
+    if ($Source -eq 'espn') { Import-Module $EspnModule -Force -DisableNameChecking }
     $utf8 = New-Object Text.UTF8Encoding($false)
     $leagueNames = @{ pl = 'Premier League'; ch = 'Championship'; l1 = 'League One'; l2 = 'League Two'; cup = 'Cups' }
 
@@ -294,18 +399,23 @@ $script:WorkerScript = {
         if (-not $Queue.TryTake([ref]$item, 500)) { continue }
         try {
             if ($Shared.Halted -or $item.Gen -ne $Shared.Gen -or $Shared.Skip.ContainsKey($item.Key)) { continue }
-            $Shared.Requests++
-            $hostName = ([uri]$item.Url).Host
-            $kind = ($item.Key -split ':')[0]
-            if (-not $Shared.ByHost.ContainsKey($hostName)) { $Shared.ByHost[$hostName] = @{ requests = 0; bytes = [long]0; errors = 0 } }
-            if (-not $Shared.ByKind.ContainsKey($kind)) { $Shared.ByKind[$kind] = @{ requests = 0; bytes = [long]0 } }
-            $hs = $Shared.ByHost[$hostName]; $hs.requests++; $Shared.ByKind[$kind].requests++
-            $t0 = Get-Date
-            $text = Invoke-FakeServer $item
-            $len = $utf8.GetByteCount($text)
-            $Shared.Bytes += $len; $hs.bytes += $len; $Shared.ByKind[$kind].bytes += $len
-            [void]$Shared.Last.Insert(0, @{ at = $t0.ToString('o'); key = $item.Key; host = $hostName; bytes = $len; ms = [int]((Get-Date) - $t0).TotalMilliseconds; ok = $true })
-            while ($Shared.Last.Count -gt 40) { $Shared.Last.RemoveAt(40) }
+            if ($Source -eq 'espn') {
+                # The real source counts every HTTP request itself (Invoke-EspnHttp: per server, per kind, one request per second).
+                $text = Invoke-EspnItem $item $Shared $CacheDir
+            } else {
+                $Shared.Requests++
+                $hostName = ([uri]$item.Url).Host
+                $kind = ($item.Key -split ':')[0]
+                if (-not $Shared.ByHost.ContainsKey($hostName)) { $Shared.ByHost[$hostName] = @{ requests = 0; bytes = [long]0; errors = 0 } }
+                if (-not $Shared.ByKind.ContainsKey($kind)) { $Shared.ByKind[$kind] = @{ requests = 0; bytes = [long]0 } }
+                $hs = $Shared.ByHost[$hostName]; $hs.requests++; $Shared.ByKind[$kind].requests++
+                $t0 = Get-Date
+                $text = Invoke-FakeServer $item
+                $len = $utf8.GetByteCount($text)
+                $Shared.Bytes += $len; $hs.bytes += $len; $Shared.ByKind[$kind].bytes += $len
+                [void]$Shared.Last.Insert(0, @{ at = $t0.ToString('o'); key = $item.Key; host = $hostName; bytes = $len; ms = [int]((Get-Date) - $t0).TotalMilliseconds; ok = $true })
+                while ($Shared.Last.Count -gt 40) { $Shared.Last.RemoveAt(40) }
+            }
             if ($Shared.Halted -or $item.Gen -ne $Shared.Gen) { continue }
             $path = Join-Path $CacheDir $item.File
             [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path))
@@ -321,8 +431,10 @@ $script:WorkerScript = {
             $Shared.LastError = $null
         } catch {
             if ($item.Gen -eq $Shared.Gen -and -not $Shared.Halted) {
-                $Shared.Errors++
-                try { $hn = ([uri]$item.Url).Host; if ($Shared.ByHost.ContainsKey($hn)) { $Shared.ByHost[$hn].errors++ }; [void]$Shared.Last.Insert(0, @{ at = (Get-Date).ToString('o'); key = $item.Key; host = $hn; bytes = 0; ms = 0; ok = $false }) } catch { }
+                if ($Source -ne 'espn') {
+                    $Shared.Errors++
+                    try { $hn = ([uri]$item.Url).Host; if ($Shared.ByHost.ContainsKey($hn)) { $Shared.ByHost[$hn].errors++ }; [void]$Shared.Last.Insert(0, @{ at = (Get-Date).ToString('o'); key = $item.Key; host = $hn; bytes = 0; ms = 0; ok = $false }) } catch { }
+                }
                 $msg = $_.Exception.Message
                 $Shared.LastError = $msg
                 $Out.Enqueue('{"event":"data","data":{"key":' + (ConvertTo-Json $item.Key) + ',"ok":false,"error":' + (ConvertTo-Json -InputObject ([string]$msg) -Compress) + '}}')
@@ -338,7 +450,7 @@ function Start-WorkerRunspace {
     $ps = [PowerShell]::Create()
     $ps.Runspace = [RunspaceFactory]::CreateRunspace()
     $ps.Runspace.Open()
-    [void]$ps.AddScript($script:WorkerScript).AddArgument($script:Shared).AddArgument($script:Queue).AddArgument($script:Out).AddArgument($script:CacheDir).AddArgument($script:Clubs)
+    [void]$ps.AddScript($script:WorkerScript).AddArgument($script:Shared).AddArgument($script:Queue).AddArgument($script:Out).AddArgument($script:CacheDir).AddArgument($script:Clubs).AddArgument($script:Source).AddArgument((Join-Path $PSScriptRoot 'FADash.Espn.psm1'))
     $script:WorkerHandle = $ps.BeginInvoke()
     $script:Worker = $ps
 }
@@ -349,13 +461,31 @@ function Clear-Queue {
     $script:Shared.Pending.Clear()
 }
 
+function Get-SettingsView {
+    # The settings the page sees: the favourites of the running source under "favorites".
+    $o = [ordered]@{}
+    foreach ($k in @($script:Settings.Keys)) { if ($k -ne 'favoritesEspn' -and $k -ne 'source') { $o[$k] = $script:Settings[$k] } }
+    $o.favorites = @($script:Settings[(Get-FavKey)])
+    return $o
+}
+function Get-TeamsView {
+    # The clubs for the page. The crest address (a download link) stays here; the page only learns whether a crest file is saved.
+    $list = @()
+    foreach ($c in $script:Clubs) {
+        $o = [ordered]@{ id = $c.id; abbr = $c.abbr; name = $c.name; color = $c.color; league = $c.league }
+        if ($script:Source -eq 'espn') { $o.crest = [bool](Test-Path -LiteralPath (Join-Path (Join-Path (Join-Path $script:CacheDir 'espn') 'crests') "$($c.id).png")) }
+        $list += , $o
+    }
+    return , $list
+}
 function Get-Snapshot {
     return @{
+        source = $script:Source
         mode = [string]$script:Ctx.Mode; version = $script:Version; theme = [string]$script:Ctx.Theme
         launcherVersion = [string]$script:Ctx.LauncherVersion
         halted = [bool]$script:Shared.Halted; live = [int]$script:Shared.Live + $script:Pretend.Live
         error = $(if ($script:Pretend.Problem) { 'Pretend problem (Pretend data tools).' } else { $script:Shared.LastError })
-        settings = $script:Settings
+        settings = (Get-SettingsView)
         pretend = @{ live = $script:Pretend.Live; update = $script:Pretend.Update; problem = $script:Pretend.Problem; fail = [bool]$script:Shared.FailDownloads }
         today = (Get-Date).ToString('yyyy-MM-dd'); seasonStart = (Get-SeasonStart).ToString('yyyy-MM-dd')
         traffic = @{ requests = [int]$script:Shared.Requests; bytes = [long]$script:Shared.Bytes; errors = [int]$script:Shared.Errors }
@@ -469,6 +599,8 @@ function Initialize-Dash {
         Remove-Item (Join-Path $script:UpdDir 'update-failed.json') -Force -ErrorAction SilentlyContinue
         Remove-Item (Join-Path $script:UpdDir 'update-pending.json') -Force -ErrorAction SilentlyContinue
     }
+    $script:Source = Get-SourceName
+    $script:Pfx = $(if ($script:Source -eq 'espn') { 'espn\' } else { '' })
     Read-Clubs
     $script:Settings = Read-Settings
     $script:Pretend = @{ Live = 0; Update = $false; Problem = $false }
@@ -510,7 +642,7 @@ function Invoke-DashCommand {
             'init' {
                 $snap = Get-Snapshot
                 $snap.updateNote = $script:UpdateNote
-                $snap.teams = $script:Clubs
+                $snap.teams = (Get-TeamsView)
                 Reply $id (ConvertTo-PageJson $snap)
                 if ($script:UpdateNote -and $script:UpdateNote.ok) {
                     # the page loaded: tell the update helper the new version works
@@ -577,7 +709,7 @@ function Invoke-DashCommand {
                         $s.autoRefresh = $on; if ($on) { $s.autoAck = $true }
                     }
                     'refreshSeconds' { $s.refreshSeconds = Limit-Seconds $a.value }
-                    'favorites' { $s.favorites = Limit-Teams $a.value }
+                    'favorites' { $s[(Get-FavKey)] = Limit-Teams $a.value }
                     'updateCheck' { $s.updateCheck = [bool]$a.value }
                     'theme' { if (@('system', 'light', 'dark') -contains [string]$a.value) { $s.theme = [string]$a.value } }
                     default { ReplyError $id 'unknown setting'; return }
@@ -599,7 +731,7 @@ function Invoke-DashCommand {
             }
             'season.weeks' {
                 # per week: the leagues that have a saved copy of it
-                $weeks = foreach ($w in (Get-SeasonWeeks)) { @{ monday = $w; leagues = @($script:Leagues | Where-Object { $null -ne (Get-CacheAge "$_\week-$w.json") }) } }
+                $weeks = foreach ($w in (Get-SeasonWeeks)) { @{ monday = $w; leagues = @($script:Leagues | Where-Object { $null -ne (Get-CacheAge "$($script:Pfx)$_\week-$w.json") }) } }
                 Reply $id (ConvertTo-Json -InputObject @($weeks) -Depth 4 -Compress)
             }
             'sync.run' {
@@ -640,7 +772,7 @@ function Invoke-DashCommand {
                 Reply $id (ConvertTo-Json -InputObject $obj -Depth 5 -Compress)
             }
             'cache.clear' {
-                Get-ChildItem -LiteralPath $script:CacheDir -File -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '\.json$' } | Remove-Item -Force -ErrorAction SilentlyContinue
+                Get-ChildItem -LiteralPath $script:CacheDir -File -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '\.json$' -and $_.FullName -notmatch '[\\/]crests[\\/]' } | Remove-Item -Force -ErrorAction SilentlyContinue
                 Reply $id 'true'
             }
             'traffic.stop' {
@@ -680,7 +812,11 @@ function Receive-DashEvents {
         elseif ($pct -ne $script:LastSyncPct) { $script:LastSyncPct = $pct; $out.Add(('{{"event":"sync","data":{{"running":true,"pct":{0},"text":"Downloading {1} of {2}"}}}}' -f $pct, ($script:SyncTotal - $left), $script:SyncTotal)) }
     }
     $msg = $null
-    while ($out.Count -lt 25 -and $script:Out.TryDequeue([ref]$msg)) { $out.Add($msg) }
+    while ($out.Count -lt 25 -and $script:Out.TryDequeue([ref]$msg)) {
+        $out.Add($msg)
+        # a club list was just saved: the host learns the new club ids before the page can ask for a team or a crest
+        if ($script:Source -eq 'espn' -and $msg.StartsWith('{"event":"data","data":{"key":"clubs:')) { Read-Clubs }
+    }
     return $out.ToArray()       # unrolled: the caller gets one JSON string per item (wrap in @() for 0 or 1)
 }
 

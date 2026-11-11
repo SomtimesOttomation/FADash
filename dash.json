@@ -11,6 +11,10 @@
   "standalone": "Start-FADash.bat",
   "dataSources": [
     {
+      "name": "ESPN public JSON feeds (unofficial; switched off by default)",
+      "terms": "https://disneytermsofuse.com/"
+    },
+    {
       "name": "GitHub releases (update check, only when you ask)",
       "terms": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service"
     }

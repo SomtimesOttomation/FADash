@@ -25,5 +25,19 @@ nothing on a timer, and the pause button in the navigation bar stops all data tr
 affected by the pause.
 
 ## Disclaimer
-Unofficial and not affiliated with any football league, club or data provider. FADash bundles no data; it will fetch
-from public endpoints to your own computer, for personal use. Club names and badges belong to their owners.
+Unofficial and not affiliated with ESPN, any football league, club or data provider. FADash bundles no data.
+
+FADash's real data source (switched off by default while it is being built; the made-up PRETEND data is what you see) is
+ESPN's unofficial, public JSON feeds, fetched to your own computer for personal use. ESPN publishes no terms or limits for
+these feeds, and they can change or stop at any time. Using them is the project owner's own risk decision for a hobby
+project; it is not a permission from ESPN and no one at ESPN has approved it. FADash keeps its use small and polite:
+
+- Nothing is fetched until you ask. Automatic refresh is off by default; turning it on shows a warning first, and the
+  interval can be lengthened.
+- At most one request per second, and every request is counted on the traffic page.
+- Only the public JSON feeds, no web-page scraping, no sign-in, no other ESPN products.
+- No betting data: odds, lines and spreads are never read, saved or shown.
+- Club crests are downloaded to your own cache folder the first time a club is shown; they are not part of this repository.
+- This repository contains no ESPN data, only the code that fetches it.
+
+Club names and badges belong to their owners.

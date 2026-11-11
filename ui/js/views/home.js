@@ -35,7 +35,13 @@ function draw({ el }) {
   const sections = [section(today, 'Today'), section(yest, 'Last night')].filter(Boolean);
   const out = [];
   const fav = S.favSet();
-  if (fav.size === 0) out.push(h('div', { class: 'card pad fa-notice' },
+  // Real source only: the club list is downloaded once, on a click (about 4 requests; crests follow one at a time as clubs are drawn).
+  if (S.state.source === 'espn' && S.state.teams.length === 0) {
+    out.push(h('div', { class: 'card pad fa-notice' },
+      h('span', null, h('b', null, 'No clubs yet. '), 'FADash downloads the clubs of the four leagues once (four requests). Their crests are saved to your computer as each club first appears.'),
+      h('button', { class: 'btn', type: 'button', disabled: S.state.clubsLoading || S.state.halted ? true : null, onclick: () => S.downloadClubs() }, S.state.clubsLoading ? 'Downloading...' : 'Download clubs'),
+      S.state.clubsError ? h('small', { class: 'muted' }, S.state.clubsError) : null));
+  } else if (fav.size === 0) out.push(h('div', { class: 'card pad fa-notice' },
     h('b', null, 'Pick your teams. '), 'Click the ☆ on any crest above: favorites move to the front, across every league, and their matches are shown first.'));
   if (!S.state.settings.autoRefresh && S.state.host) {
     out.push(h('div', { class: 'card pad fa-notice' },
