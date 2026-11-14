@@ -51,7 +51,7 @@ function draw({ el, arg }) {
 
   const err = S.keyError(`team:${arg}`);
   const head = (label, key) => h('th', null, key ? h('span', calc(key, 'player'), label) : label);
-  const real = S.state.source === 'espn';
+  const real = true;  // the roster feed has age and shirt number
   const squad = file
     ? POS_ORDER.map(([code, label]) => {
       const rows = file.players.filter((p) => p.pos === code);
@@ -62,5 +62,5 @@ function draw({ el, arg }) {
         h('tbody', null, rows.map((p) => h('tr', null, h('td', null, p.no ? h('small', { class: 'muted' }, `${p.no} `) : null, h('b', null, p.name)), real ? h('td', null, dash(p.age)) : null, h('td', null, dash(p.apps)), h('td', null, dash(p.g)), h('td', null, dash(p.a)), h('td', null, dash(p.yc)), h('td', null, dash(p.rc)))))));
     })
     : [err ? failNote(err) : emptyState('Loading...', '')];
-  el.replaceChildren(hero, ...sections, sectionHead('Squad', S.state.source === 'espn' ? 'from ESPN · appearances, goals and cards are not in this feed' : 'pretend players'), ...squad);
+  el.replaceChildren(hero, ...sections, sectionHead('Squad', 'from ESPN · appearances, goals and cards are not in this feed'), ...squad);
 }

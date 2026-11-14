@@ -11,7 +11,7 @@
   "standalone": "Start-FADash.bat",
   "dataSources": [
     {
-      "name": "ESPN public JSON feeds (unofficial; switched off by default)",
+      "name": "ESPN public JSON feeds (unofficial)",
       "terms": "https://disneytermsofuse.com/"
     },
     {

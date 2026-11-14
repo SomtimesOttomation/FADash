@@ -20,7 +20,7 @@ export { overlay };
 
 const TAB_KEY = 'fadash.settingsTab';
 let settingsTab = 'general';
-try { const v = localStorage.getItem(TAB_KEY); if (['general', 'data', 'sync', 'pretend'].includes(v)) settingsTab = v; } catch (e) { /* ignore */ }
+try { const v = localStorage.getItem(TAB_KEY); if (['general', 'data', 'sync'].includes(v)) settingsTab = v; } catch (e) { /* ignore */ }
 
 const hr = () => h('hr', { style: { border: 0, borderTop: '1px solid var(--line)' } });
 
@@ -79,13 +79,8 @@ function dataTab() {
     refreshPanel(),
     hr(),
     h('p', null, h('b', null, 'Data sources ')),
-    ...(S.state.source === 'espn' ? [
-      h('div', { class: 'card pad fa-notice' }, h('b', null, 'ESPN DATA (unofficial). '), 'Scores, tables, clubs and squads come from ESPN\u2019s public JSON feeds. ESPN publishes no terms or limits for these feeds and they can change or stop at any time. FADash asks only when you ask (or when you turn automatic refresh on), at most one request per second, and never asks for betting data. Club crests are downloaded to your computer the first time each club is drawn.'),
-      h('p', null, h('small', null, 'Every request is counted per server on the traffic page. Nothing from ESPN is stored in FADash\u2019s own files; the saved copies live in your cache folder and Clear saved data removes them (crest pictures stay, so they are not downloaded again).')),
-    ] : [
-      h('div', { class: 'card pad fa-notice' }, h('b', null, 'PRETEND DATA. '), 'Every club, match and player in FADash is made up for now. No real source has been chosen yet: the candidates and their terms get checked first, and the chosen source is listed here with its attribution.'),
-      h('p', null, h('small', null, 'Pretend servers (scores.pretend.invalid, teams.pretend.invalid) answer from inside the app; nothing leaves your computer. Each real source will be listed here with a link to its terms, as in dash.json, and counted separately on the traffic page.')),
-    ]),
+    h('div', { class: 'card pad fa-notice' }, h('b', null, 'ESPN DATA (unofficial). '), 'Scores, tables, clubs and squads come from ESPN\u2019s public JSON feeds. ESPN publishes no terms or limits for these feeds and they can change or stop at any time. FADash asks only when you ask (or when you turn automatic refresh on), at most one request per second, and never asks for betting data. Club crests are downloaded to your computer the first time each club is drawn.'),
+    h('p', null, h('small', null, 'Every request is counted per server on the traffic page. Nothing from ESPN is stored in FADash\u2019s own files; the saved copies live in your cache folder and Clear saved data removes them (crest pictures stay, so they are not downloaded again).')),
     h('p', null, h('button', { class: 'btn', type: 'button', onclick: async () => { await bridge.request('cache.clear'); location.reload(); } }, 'Clear saved data'), ' ',
       h('button', { class: 'btn', type: 'button', onclick: () => openTraffic() }, 'Traffic details')),
     void t,
@@ -115,35 +110,18 @@ function syncTab() {
   return [h('p', null, h('b', null, 'Season sync '), h('small', null, 'Downloads the season one week at a time. Progress also shows in the strip under the top bar and on the launcher’s tab.')), syncPanel()];
 }
 
-// Pretend data tools: pretend states to try DashLauncher's tab badges, and failing downloads to try the failed-request rule.
+// Messages from the host (kept for debugging in the console: import { hostLog } from settings.js).
 export const hostLog = [];
-function pretendTab(repaint) {
-  const p = S.state.pretend;
-  const set = (k, v) => S.setPretend(k, v).then(repaint).catch(() => {});
-  const box = (k, label) => h('p', null, h('label', null, h('input', { type: 'checkbox', checked: p[k] ? true : null, onchange: (e) => set(k, e.target.checked) }), ` ${label}`));
-  return [
-    h('p', null, h('small', null, 'Not saved. For trying the launcher and the dash’s rules without a real source.')),
-    h('p', null, h('b', null, 'Pretend live matches '),
-      h('button', { class: 'btn', type: 'button', onclick: () => set('live', p.live - 1) }, '−'), ` ${p.live} `,
-      h('button', { class: 'btn', type: 'button', onclick: () => set('live', p.live + 1) }, '+')),
-    box('update', 'Pretend an update is available (badge on the launcher tab)'),
-    box('problem', 'Pretend there is a problem (warning on the launcher tab)'),
-    box('fail', 'Pretend downloads fail (a failed item waits for Refresh)'),
-    hr(),
-    h('p', null, h('b', null, 'Messages from the host')),
-    hostLog.length ? h('ol', { class: 'hostlog' }, hostLog.map((l) => h('li', null, h('small', { class: 'muted' }, l.t), ' ', l.text))) : h('p', null, h('small', null, 'Switch tabs or change the launcher theme to see messages here.')),
-  ];
-}
 
 export function openSettings() {
   overlay((close) => {
     const body = h('div', { class: 'settings-body', role: 'tabpanel' });
     const tabs = h('div', { class: 'seg settings-tabs', role: 'tablist', 'aria-label': 'Settings sections' });
     const paint = () => {
-      tabs.replaceChildren(...[['general', 'General'], ['data', 'Data'], ['sync', 'Sync'], ['pretend', 'Pretend data']].filter(([k]) => k !== 'pretend' || S.state.source !== 'espn').map(([k, label]) => h('button', {
+      tabs.replaceChildren(...[['general', 'General'], ['data', 'Data'], ['sync', 'Sync']].map(([k, label]) => h('button', {
         type: 'button', role: 'tab', 'aria-selected': settingsTab === k ? 'true' : 'false', class: settingsTab === k ? 'active' : '',
         onclick: () => { settingsTab = k; try { localStorage.setItem(TAB_KEY, k); } catch (e) { /* ignore */ } paint(); } }, label)));
-      body.replaceChildren(...(settingsTab === 'data' ? dataTab() : settingsTab === 'sync' ? syncTab() : settingsTab === 'pretend' && S.state.source !== 'espn' ? pretendTab(paint) : generalTab(close, paint)));
+      body.replaceChildren(...(settingsTab === 'data' ? dataTab() : settingsTab === 'sync' ? syncTab() : generalTab(close, paint)));
     };
     paint();
     return h('div', null,
