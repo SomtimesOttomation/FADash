@@ -6,6 +6,8 @@ Release rhythm: changes are merged as they are done without changing VERSION, an
 
 ## Unreleased
 
+## v0.3.0 (2026-11-16)
+
 ### Feature
 - Real data only: FADash now always uses ESPN's public JSON feeds. The made-up PRETEND data, the hidden switch (`tools\Switch-FADash-Source.bat`, `Set-FADashSource.ps1`, the `source` setting) and the Pretend data settings tab are gone. A new install shows "Download clubs" on Home (four requests); nothing is fetched until the person asks. Branch `feature/real-data-default`.
 - Upgrading from 0.2.x: the ESPN favourites become the favourites (the pretend ones are dropped), and the old pretend cache folders (`cache\pl`, `cache\ch`, ...) are removed once. The ESPN cache, clubs and crests are kept.
