@@ -5,7 +5,7 @@
 // Design decisions for the league pills (also in CHANGELOG.md):
 //   - Data keys carry the league: score:<lg>:<date>, week:<lg>:<monday>, standings:<lg>, team:<club id>. The host keeps one
 //     cache folder per league, so one league can be refreshed or deleted alone.
-//   - Clubs are keyed by the data source's team id (the pretend feed uses 3-letter ids). Favourites are club ids and work across leagues.
+//   - Clubs are keyed by the data source's team id (ESPN's numeric ids). Favourites are club ids and work across leagues.
 //   - Banner: favourites from every league first (each with its league tag), then the clubs of the open league. Cups show every club.
 //   - Week bar: calendar weeks (Monday to Sunday) that have saved matches for the open league. Rounds and matchweeks come later.
 //   - Traffic is counted per data source (host), not per league; the traffic page lists keys, which carry the league.
@@ -22,7 +22,7 @@ function savedLeague() {
 
 export const state = {
   ready: false,
-  source: 'pretend',        // 'pretend' (default) or 'espn' (hidden switch in the host; the page never offers it)
+  source: 'espn',
   crests: new Map(),        // club id -> crest picture address (a file in the person's cache); only with the real source
   clubsLoading: false,
   host: bridge.isHost,
@@ -41,7 +41,6 @@ export const state = {
   watch: new Set(),
   seasonStart: '',          // iso date of the season's first Monday
   seasonWeeks: [],          // [{ monday, leagues: [slugs with a saved copy] }]
-  pretend: { live: 0, update: false, problem: false, fail: false },
   clubsError: '',
   update: { phase: 'idle', info: null, pct: 0, text: '', error: '', quiet: false, note: null },
   halted: false,
@@ -302,7 +301,6 @@ function takeSnapshot(snap) {
   if (!snap) return;
   state.settings = { ...state.settings, ...(snap.settings || {}) };
   state.halted = !!snap.halted;
-  if (snap.pretend) state.pretend = snap.pretend;
   if (snap.source) state.source = snap.source;
 }
 // The live status button: same as the launcher's kill switch, started from inside the dash.
@@ -337,8 +335,6 @@ function onSync(d) {
   if (d.running === false && !d.cancelled) loadSeasonWeeks();
   notify('sync');
 }
-// Pretend data tools: pretend states for the launcher's tab badges, and failing downloads.
-export async function setPretend(key, value) { takeSnapshot(await bridge.request('pretend.set', { key, value })); notify('pretend', 'live'); }
 
 export async function init() {
   await bridge.ready();

@@ -81,9 +81,9 @@ function syncBar() {
 function liveStatus() {
   const el = $('#live-status');
   const l = S.state.live;
-  const anyLive = S.allEvents().some((e) => e.state === 'in') || S.state.pretend.live > 0;
+  const anyLive = S.allEvents().some((e) => e.state === 'in');
   const halted = !!S.state.halted;
-  const err = l.error || (S.state.pretend.problem ? 'Pretend problem (Pretend data tools).' : '');
+  const err = l.error || '';
   el.className = `live-status np-live ${anyLive && !halted ? 'on' : ''} ${err && !halted ? 'err' : ''} ${halted ? 'halted' : ''}`;
   el.setAttribute('aria-pressed', halted ? 'true' : 'false');
   const manual = !S.state.settings.autoRefresh;
@@ -146,7 +146,7 @@ $('#btn-refresh').addEventListener('click', async () => {
 document.addEventListener('keydown', (e) => { if (e.key === 'F5') { e.preventDefault(); $('#btn-refresh').click(); } });
 
 // Search: clubs from the host's list, plus the players of every club page already opened (no lookup request is made: the
-// pretend data has nothing to look up). Ghost completion, Up/Down/Enter, Tab or Right-arrow accepts the suggestion,
+// players come from the squads already downloaded). Ghost completion, Up/Down/Enter, Tab or Right-arrow accepts the suggestion,
 // "/" focuses the box, Esc clears it (NAVBAR-SPEC).
 const res = $('#psearch-results');
 const input = $('#psearch');
@@ -194,7 +194,7 @@ bridge.on('traffic', (d) => log(`traffic: ${d && d.stopped ? 'stopped' : 'resume
 S.subscribe((topics) => {
   if (topics.has('theme') || topics.has('settings')) themeIcon();
   if (topics.has('traffic')) { haltBar(); liveStatus(); }
-  if (topics.has('settings') || topics.has('pretend')) liveStatus();
+  if (topics.has('settings')) liveStatus();
   if (topics.has('league')) { route(); return; }          // the open league changed: every league-aware page starts again
   if (topics.has('teams') || topics.has('favorites')) renderBanner($('#banner'), location.hash.startsWith('#/team/') ? decodeURIComponent(location.hash.slice(7)) : '');
   if (topics.has('days')) { renderLeagueBar($('#leaguebar')); renderWeekBar($('#weekbar'), location.hash.startsWith('#/week/') ? decodeURIComponent(location.hash.slice(7)) : ''); }

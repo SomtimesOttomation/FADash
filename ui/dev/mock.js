@@ -1,21 +1,21 @@
 // Browser preview host, like NBADash's ui/dev/mock.js: open ui/index.html from a local web server (for example
 // `python -m http.server` in the ui folder) and the page runs without PowerShell or WebView2. It answers the same
-// commands as the backend, with PRETEND clubs and fixtures (ui/data/pretend-clubs.json). Dev only: the real host never loads this file.
+// commands as the backend, with PRETEND clubs and fixtures (ui/dev/pretend-clubs.json). Dev only: the real host never loads this file.
 //
 // Keep this in step with modules/FADash.Host.psm1: same keys, same shapes. Keys:
 //   score:<league>:<yyyy-mm-dd>   one day of matches        week:<league>:<monday>   seven days   standings:<league>   team:<club id>
 let emit = () => {};
 export function attach(fn) { emit = fn; }
 
-const CLUBS = (await (await fetch(new URL('../data/pretend-clubs.json', import.meta.url))).json()).clubs;
+const CLUBS = (await (await fetch(new URL('./pretend-clubs.json', import.meta.url))).json()).clubs;
 const LEAGUE_NAMES = { pl: 'Premier League', ch: 'Championship', l1: 'League One', l2: 'League Two', cup: 'Cups' };
 const SLUGS = Object.keys(LEAGUE_NAMES);
 const clubsOf = (lg) => (lg === 'cup' ? CLUBS : CLUBS.filter((c) => c.league === lg));
 const clubById = Object.fromEntries(CLUBS.map((c) => [c.id, c]));
 
-// ?source=espn previews the REAL-source behaviour of the page (hidden switch in the host): no clubs until they are downloaded,
-// crests fetched one by one, squads without appearance numbers. The data is still made up.
-const ESPN = new URLSearchParams(location.search).get('source') === 'espn';
+// The preview behaves like the real (ESPN) host: no clubs until they are downloaded, crests fetched one by one, squads
+// without appearance numbers. The data is made up and the preview never ships as data.
+const ESPN = new URLSearchParams(location.search).get('clubs') !== 'all';   // ?clubs=all starts with the clubs already downloaded
 const known = new Set(ESPN ? [] : CLUBS.map((c) => c.id));
 const settings = { theme: new URLSearchParams(location.search).get('theme') || 'system', autoRefresh: false, autoAck: false, refreshSeconds: 60, favorites: [], updateCheck: false };
 const pretend = { live: 0, update: false, problem: false, fail: false };
