@@ -6,6 +6,9 @@ Release rhythm: changes are merged as they are done without changing VERSION, an
 
 ## Unreleased
 
+### Redesign
+- Glass (DashLauncher 0.14, opt-in): when the launcher sends `host.theme` with `glass: true`, the page sets `data-glass` and turns its background transparent and its cards, crest tiles, bars and table frosted, so the blurred desktop shows through. Text, scores and club colours stay solid; the navigation bar, tables, search results and dialogs get the strongest frost. Never set when FADash runs on its own. Branch `redesign/glass`.
+
 ## v0.3.0 (2026-11-16)
 
 ### Feature
