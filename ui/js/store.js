@@ -351,7 +351,12 @@ export async function init() {
   applyTheme();
 
   // host events (dash contract): launcher theme, tab shown again, kill switch
-  bridge.on('host.theme', (d) => { state.hostTheme = (d && d.theme) || ''; applyTheme(); });
+  bridge.on('host.theme', (d) => {
+    state.hostTheme = (d && d.theme) || '';
+    // DashLauncher 0.14 Glass (opt-in, Windows 11 Acrylic): the launcher makes the view transparent; the page frosts its surfaces.
+    if (inLauncher() && d && d.glass === true) document.documentElement.dataset.glass = '1'; else delete document.documentElement.dataset.glass;
+    applyTheme();
+  });
   bridge.on('host.visible', () => { if (state.settings.autoRefresh && !state.halted) refresh().catch(() => {}); notify('visible'); });
   bridge.on('host.hidden', () => notify('hidden'));
   bridge.on('traffic', (d) => { state.halted = !!(d && d.stopped); notify('traffic'); });
